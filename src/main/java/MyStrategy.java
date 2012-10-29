@@ -5,7 +5,7 @@ import static java.lang.StrictMath.PI;
 public final class MyStrategy implements Strategy {
 	private static double MIN_SHOOT_ANGLE = PI / 180.0;
 	private static double MIN_BONUS_ANGLE = PI / 6.0;
-	private static double MIN_SHOOT_DIST = 100;
+	private static double MIN_SHOOT_DIST = 300;
 	
 	private int getSmallestAngleEnemy(Tank self, World world) {
 		int index = -1;
@@ -13,7 +13,7 @@ public final class MyStrategy implements Strategy {
     	Tank[] tanks = world.getTanks();
     	for (int i = 0; i < tanks.length; ++i) {
     		Tank tank = tanks[i];
-    		if (!tank.isTeammate()) {
+    		if (!tank.isTeammate() && tank.getCrewHealth() > 0) {
     			double angle = Math.abs(self.getTurretAngleTo(tank));
     			if (angle < minAngle) {
     				minAngle = angle;
@@ -30,7 +30,7 @@ public final class MyStrategy implements Strategy {
     	Tank[] tanks = world.getTanks();
     	for (int i = 0; i < tanks.length; ++i) {
     		Tank tank = tanks[i];
-    		if (!tank.isTeammate()) {
+    		if (!tank.isTeammate() && tank.getCrewHealth() > 0) {
     			double dist = self.getDistanceTo(tank);
     			if (dist < minDist) {
     				minDist = dist;
@@ -63,15 +63,20 @@ public final class MyStrategy implements Strategy {
     	int nearestEnemy = getNearestEnemy(self, world);
     	
     	int enemyIndex = -1;
-//    	if (smallestAngleEnemy.index == nearestEnemy.index) {
-//    		enemyIndex = nearestEnemy.index;
-//    	} else {
-//    		if (nearestEnemy.dist < MIN_SHOOT_DIST) {
-//    			enemyIndex = nearestEnemy.index;
-//    		} else {
+    	if (smallestAngleEnemy == nearestEnemy) {
+    		enemyIndex = nearestEnemy;
+    	} else if (nearestEnemy == -1) {
+    		enemyIndex = smallestAngleEnemy;
+    	} else if (smallestAngleEnemy == -1) {
+    		enemyIndex = nearestEnemy;
+    	} else {
+    		double nearestEnemyDist = self.getDistanceTo(tanks[nearestEnemy]);
+    		if (nearestEnemyDist < MIN_SHOOT_DIST) {
+    			enemyIndex = nearestEnemy;
+    		} else {
     			enemyIndex = smallestAngleEnemy;
-//    		}
-//    	}
+    		}
+    	}
     	
     	if (enemyIndex != -1) {
     		double enemyAngle = self.getTurretAngleTo(tanks[enemyIndex]);

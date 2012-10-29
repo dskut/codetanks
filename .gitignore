@@ -1,0 +1,14 @@
+.classpath
+.idea
+.project
+classes
+out
+*.bat
+*.sh
+local-runner
+repeater
+*.pdf
+*.xml
+*.jar
+*.iml
+*.log
