@@ -150,6 +150,20 @@ public final class MyStrategy implements Strategy {
 		return false;
 	}
 	
+	private int getEnemyShooting(Tank self, World world) {
+		Tank[] tanks = world.getTanks();
+		for (int i = 0; i < tanks.length; ++i) {
+			Tank tank = tanks[i];
+			if (tank.isTeammate() || tank.getCrewHealth() <= 0) {
+				continue;
+			}
+			if (Math.abs(tank.getTurretAngleTo(self)) < MIN_SHOOT_ANGLE && tank.getRemainingReloadingTime() < 2) {
+				return i;
+			}
+		}
+		return -1;
+	}
+	
     @Override
     public void move(Tank self, World world, Move move) {
     	Tank[] tanks = world.getTanks();
@@ -190,7 +204,11 @@ public final class MyStrategy implements Strategy {
     	}
     	
     	int bonusIndex = getImportantBonus(self, world);
-    	if (bonusIndex != -1) {
+    	int enemyShootingIndex = getEnemyShooting(self, world);
+    	if (enemyShootingIndex != -1) {
+			move.setLeftTrackPower(1);
+			move.setRightTrackPower(1);
+    	} if (bonusIndex != -1) {
     		Bonus bonus = world.getBonuses()[bonusIndex];
     		drive(self, move, bonus.getX(), bonus.getY());
     	} else {
