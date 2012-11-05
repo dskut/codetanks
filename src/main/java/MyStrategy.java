@@ -4,7 +4,7 @@ import static java.lang.StrictMath.PI;
 
 public final class MyStrategy implements Strategy {
 	private static double MIN_SHOOT_ANGLE = PI / 180.0;
-	private static double MIN_BONUS_ANGLE = PI / 6.0;
+	private static double MIN_DRIVE_ANGLE = PI / 6.0;
 	private static double MIN_SHOOT_DIST = 300;
 	private static double MIN_HEALTH = 0.3;
 	private static double STABLE_HEALTH = 0.6;
@@ -101,6 +101,32 @@ public final class MyStrategy implements Strategy {
     	return getNearestBonus(self, world);
 	}
 	
+	private void drive(Tank self, Move move, double x, double y) {
+		double angle = self.getAngleTo(x, y);    		
+		if (-PI/2 <= angle && angle <= PI/2) {
+			if (angle > MIN_DRIVE_ANGLE) {
+				move.setLeftTrackPower(0.75);
+				move.setRightTrackPower(-1);
+			} else if (angle < -MIN_DRIVE_ANGLE) {
+				move.setLeftTrackPower(-1);
+				move.setRightTrackPower(0.75);
+			} else {
+				move.setLeftTrackPower(1);
+				move.setRightTrackPower(1);
+			}
+		} else {
+			if (0 > angle && angle > -PI + MIN_DRIVE_ANGLE) {
+				move.setLeftTrackPower(0.75);
+				move.setRightTrackPower(-1);
+			} else if (0 < angle && angle < PI - MIN_DRIVE_ANGLE) {
+				move.setLeftTrackPower(-1);
+				move.setRightTrackPower(0.75);
+			} else {
+				move.setLeftTrackPower(-1);
+				move.setRightTrackPower(-1);
+			}
+		}	}
+	
     @Override
     public void move(Tank self, World world, Move move) {
     	Tank[] tanks = world.getTanks();
@@ -139,17 +165,7 @@ public final class MyStrategy implements Strategy {
     	int bonusIndex = getImportantBonus(self, world);
     	if (bonusIndex != -1) {
     		Bonus bonus = world.getBonuses()[bonusIndex];
-    		double angle = self.getAngleTo(bonus);
-    		if (angle > MIN_BONUS_ANGLE) {
-    			move.setLeftTrackPower(0.75);
-    			move.setRightTrackPower(-1);
-    		} else if (angle < -MIN_BONUS_ANGLE) {
-    			move.setLeftTrackPower(-1);
-    			move.setRightTrackPower(0.75);
-    		} else {
-    			move.setLeftTrackPower(1);
-    			move.setRightTrackPower(1);
-    		}
+    		drive(self, move, bonus.getX(), bonus.getY());
     	}
     }
 
