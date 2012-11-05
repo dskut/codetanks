@@ -36,6 +36,7 @@ enum States {
 
 public final class MyStrategy implements Strategy {
 	private static double MIN_SHOOT_ANGLE = PI / 180.0;
+	private static double MAX_SHELL_ANGLE = PI / 6.0;
 	private static double MIN_DRIVE_ANGLE = PI / 6.0;
 	private static double MIN_SHOOT_DIST = 500;
 	private static double MIN_HEALTH = 0.3;
@@ -213,34 +214,58 @@ public final class MyStrategy implements Strategy {
 		return false;
 	}
 	
-	private ArrayList<Tank> getShootingEnemies(Tank self, World world) {
-		ArrayList<Tank> res = new ArrayList<Tank>();
-		for (Tank tank: world.getTanks()) {
-			if (tank.isTeammate() || !isAlive(tank)) {
-				continue;
-			}
-			if (Math.abs(tank.getTurretAngleTo(self)) < MIN_SHOOT_ANGLE && tank.getRemainingReloadingTime() < 2) {
-				res.add(tank);
-			}
-		}
-		return res;
-	}
+// TODO
+//	private ArrayList<Tank> getShootingEnemies(Tank self, World world) {
+//		ArrayList<Tank> res = new ArrayList<Tank>();
+//		for (Tank tank: world.getTanks()) {
+//			if (tank.isTeammate() || !isAlive(tank)) {
+//				continue;
+//			}
+//			if (Math.abs(tank.getTurretAngleTo(self)) < MIN_SHOOT_ANGLE && tank.getRemainingReloadingTime() < 10) {
+//				res.add(tank);
+//			}
+//		}
+//		return res;
+//	}
 	
-	private boolean shouldHideForward(Tank self, World world, ArrayList<Tank> enemies) {
+	private boolean shouldHideForward(Tank self, World world, List<Shell> shells) {
 		if (self.getY() < 2*self.getHeight() && Math.abs(self.getAngle() - PI/2) < PI/6) {
 			return true;
 		}
 		if (self.getY() > world.getHeight() - 2*self.getHeight() && Math.abs(-PI/2 - self.getAngle()) < PI/6) {
 			return false;
 		}
-		int directEnemies = 0;
-		for (Tank enemy: enemies) {
-			double angle = self.getAngleTo(enemy);
-			if (-PI/2 <= angle && angle <= PI/2) {
-				++directEnemies;
+		int directShells = 0;
+		for (Shell shell: shells) {
+			double angle = shell.getAngleTo(self);
+			//System.out.println("angle = " + PI / angle + "; dist = " + shell.getDistanceTo(self));
+			if (angle > 0) {
+				++directShells;
 			}
 		}
-		return directEnemies >= enemies.size() - directEnemies;
+		return directShells >= shells.size() - directShells;
+	}
+		
+    private List<Shell> getDangerShells(Tank self, World world) {
+    	List<Shell> res = new ArrayList<Shell>();
+    	for (Shell shell: world.getShells()) {
+    		double angle = shell.getAngleTo(self);
+    		double dist = shell.getDistanceTo(self);
+    		if (Math.abs(angle) < MAX_SHELL_ANGLE || (Math.abs(angle) < PI/2 && dist * Math.sin(angle) < self.getHeight())) {
+    			res.add(shell);
+    		}
+    	}
+    	return res;
+	}	
+	private void avoidDanger(Tank self, World world, Move move, List<Shell> dangerShells) {
+		//System.out.println("avoid danger, tick = " + world.getTick());
+		if (shouldHideForward(self, world, dangerShells)) {
+			//System.out.println("forward");
+			driveForward(move);
+		} else {
+			//System.out.println("backward");
+			driveBackward(move);
+		}
 	}
 	
 	private Tank getCloserEnemy(Tank self, World world, Point point) {
@@ -363,13 +388,9 @@ public final class MyStrategy implements Strategy {
 		} 
 		if (state == States.Walk) {
 	    	int bonusIndex = getImportantBonus(self, world);
-	    	ArrayList<Tank> shootingEnemies = getShootingEnemies(self, world);
-	    	if (!shootingEnemies.isEmpty()) {
-	    		if (shouldHideForward(self, world, shootingEnemies)) {
-	    			driveForward(move);
-	    		} else {
-	    			driveBackward(move);
-	    		}
+	    	List<Shell> dangerShells = getDangerShells(self, world);
+	    	if (!dangerShells.isEmpty()) {
+	    		avoidDanger(self, world, move, dangerShells);
 	    	} else if (bonusIndex != -1) {
 	    		Bonus bonus = world.getBonuses()[bonusIndex];
 	    		drive(self, move, bonus.getX(), bonus.getY());
@@ -379,9 +400,11 @@ public final class MyStrategy implements Strategy {
 	    		drive(self, move, randX, randY);
 	    	}
 		}	}
-	
-    @Override
+
+
+	@Override
     public void move(Tank self, World world, Move move) {
+    	//System.out.println("tick: " + world.getTick());
     	selectShootMove(self, world, move);
     	selectDriveMove(self, world, move);
     }
