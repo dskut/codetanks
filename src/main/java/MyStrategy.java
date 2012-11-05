@@ -1,7 +1,12 @@
 
+import java.util.ArrayList;
+import static java.lang.StrictMath.PI;
 import model.*;
 
-import static java.lang.StrictMath.PI;
+
+enum State {
+	
+}
 
 public final class MyStrategy implements Strategy {
 	private static double MIN_SHOOT_ANGLE = PI / 180.0;
@@ -150,18 +155,34 @@ public final class MyStrategy implements Strategy {
 		return false;
 	}
 	
-	private int getEnemyShooting(Tank self, World world) {
-		Tank[] tanks = world.getTanks();
-		for (int i = 0; i < tanks.length; ++i) {
-			Tank tank = tanks[i];
+	private ArrayList<Tank> getShootingEnemies(Tank self, World world) {
+		ArrayList<Tank> res = new ArrayList<Tank>();
+		for (Tank tank: world.getTanks()) {
 			if (tank.isTeammate() || tank.getCrewHealth() <= 0) {
 				continue;
 			}
 			if (Math.abs(tank.getTurretAngleTo(self)) < MIN_SHOOT_ANGLE && tank.getRemainingReloadingTime() < 2) {
-				return i;
+				res.add(tank);
 			}
 		}
-		return -1;
+		return res;
+	}
+	
+	private boolean shouldHideForward(Tank self, World world, ArrayList<Tank> enemies) {
+		if (self.getY() < 2*self.getHeight() && Math.abs(self.getAngle() - PI/2) < PI/6) {
+			return true;
+		}
+		if (self.getY() > world.getHeight() - 2*self.getHeight() && Math.abs(-PI/2 - self.getAngle()) < PI/6) {
+			return false;
+		}
+		int directEnemies = 0;
+		for (Tank enemy: enemies) {
+			double angle = self.getAngleTo(enemy);
+			if (-PI/2 <= angle && angle <= PI/2) {
+				++directEnemies;
+			}
+		}
+		return directEnemies >= enemies.size() - directEnemies;
 	}
 	
     @Override
@@ -204,10 +225,15 @@ public final class MyStrategy implements Strategy {
     	}
     	
     	int bonusIndex = getImportantBonus(self, world);
-    	int enemyShootingIndex = getEnemyShooting(self, world);
-    	if (enemyShootingIndex != -1) {
-			move.setLeftTrackPower(1);
-			move.setRightTrackPower(1);
+    	ArrayList<Tank> shootingEnemies = getShootingEnemies(self, world);
+    	if (!shootingEnemies.isEmpty()) {
+    		if (shouldHideForward(self, world, shootingEnemies)) {
+				move.setLeftTrackPower(1);
+				move.setRightTrackPower(1);
+    		} else {
+				move.setLeftTrackPower(-1);
+				move.setRightTrackPower(-1);
+    		}
     	} if (bonusIndex != -1) {
     		Bonus bonus = world.getBonuses()[bonusIndex];
     		drive(self, move, bonus.getX(), bonus.getY());
