@@ -129,6 +129,27 @@ public final class MyStrategy implements Strategy {
 			}
 		}	}
 	
+	private boolean existObstacle(Tank self, int enemyIndex, World world) {
+		Tank[] tanks = world.getTanks();
+		for (int i = 0; i < tanks.length; ++i) {
+			if (i == enemyIndex) {
+				continue;
+			}
+			Tank tank = tanks[i];
+			if ((tank.isTeammate() || tank.getCrewHealth() == 0) && 
+				Math.abs(self.getTurretAngleTo(tank)) < MIN_SHOOT_ANGLE)
+			{
+				return true;
+			}
+		}
+		for (Bonus bonus: world.getBonuses()) {
+			if (Math.abs(self.getTurretAngleTo(bonus)) < MIN_SHOOT_ANGLE) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
     @Override
     public void move(Tank self, World world, Move move) {
     	Tank[] tanks = world.getTanks();
@@ -159,7 +180,7 @@ public final class MyStrategy implements Strategy {
     			move.setTurretTurn(1);
     		} else if (enemyAngle < -MIN_SHOOT_ANGLE) {
     			move.setTurretTurn(-1);
-    		} else {
+    		} else if (!existObstacle(self, enemyIndex, world)) {
     			if (enemyDist > MAX_PREMIUM_SHOOT_DIST) {
     				move.setFireType(FireType.REGULAR);
     			} else {
@@ -167,10 +188,6 @@ public final class MyStrategy implements Strategy {
     			}
     		}
     	}
-    	
-    	//double yborder = self.getY() < world.getHeight() / 2 ? 50 : world.getHeight() - 50;
-    	//double xborder = self.getX() < world.getWidth() / 2 ? 50 : world.getWidth() - 50;
-    		
     	
     	int bonusIndex = getImportantBonus(self, world);
     	if (bonusIndex != -1) {
