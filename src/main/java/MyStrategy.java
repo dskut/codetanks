@@ -62,13 +62,17 @@ public final class MyStrategy implements Strategy {
 		move.setRightTrackPower(-1);
 	}
 	
+	private boolean isAlive(Tank tank) {
+		return tank.getCrewHealth() > 0 && tank.getHullDurability() > 0;
+	}
+	
 	private int getSmallestAngleEnemy(Tank self, World world) {
 		int index = -1;
 		double minAngle = 1e9;
     	Tank[] tanks = world.getTanks();
     	for (int i = 0; i < tanks.length; ++i) {
     		Tank tank = tanks[i];
-    		if (!tank.isTeammate() && tank.getCrewHealth() > 0) {
+    		if (!tank.isTeammate() && isAlive(tank)) {
     			double angle = Math.abs(self.getTurretAngleTo(tank));
     			if (angle < minAngle) {
     				minAngle = angle;
@@ -85,7 +89,7 @@ public final class MyStrategy implements Strategy {
     	Tank[] tanks = world.getTanks();
     	for (int i = 0; i < tanks.length; ++i) {
     		Tank tank = tanks[i];
-    		if (!tank.isTeammate() && tank.getCrewHealth() > 0) {
+    		if (!tank.isTeammate() && isAlive(tank)) {
     			double dist = self.getDistanceTo(tank);
     			if (dist < minDist) {
     				minDist = dist;
@@ -190,9 +194,14 @@ public final class MyStrategy implements Strategy {
 				continue;
 			}
 			Tank tank = tanks[i];
-			if ((tank.isTeammate() || tank.getCrewHealth() == 0) && 
-				Math.abs(self.getTurretAngleTo(tank)) < MIN_SHOOT_ANGLE)
-			{
+			double angle = self.getTurretAngleTo(tank);
+			if (!tank.isTeammate() && isAlive(tank)) {
+				continue;
+			}
+			if (Math.abs(angle) < MIN_SHOOT_ANGLE) {
+				return true;
+			}
+			if (self.getDistanceTo(tank) < self.getHeight() && Math.abs(angle) < PI/6) {
 				return true;
 			}
 		}
@@ -207,7 +216,7 @@ public final class MyStrategy implements Strategy {
 	private ArrayList<Tank> getShootingEnemies(Tank self, World world) {
 		ArrayList<Tank> res = new ArrayList<Tank>();
 		for (Tank tank: world.getTanks()) {
-			if (tank.isTeammate() || tank.getCrewHealth() <= 0) {
+			if (tank.isTeammate() || !isAlive(tank)) {
 				continue;
 			}
 			if (Math.abs(tank.getTurretAngleTo(self)) < MIN_SHOOT_ANGLE && tank.getRemainingReloadingTime() < 2) {
@@ -234,14 +243,14 @@ public final class MyStrategy implements Strategy {
 		return directEnemies >= enemies.size() - directEnemies;
 	}
 	
-	private boolean isEnemyCloser(Tank self, World world, Point point) {
+	private Tank getCloserEnemy(Tank self, World world, Point point) {
 		double selfDist = self.getDistanceTo(point.x, point.y);
 		for (Tank tank: world.getTanks()) {
-			if (tank.getCrewHealth() > 0 && tank.getDistanceTo(point.x, point.y) < selfDist) {
-				return true;
+			if (isAlive(tank) && tank.getDistanceTo(point.x, point.y) < selfDist) {
+				return tank;
 			}
 		}
-		return false;
+		return null;
 	}
 	
 	private Point getNearestFreeCorner(Tank self, World world) {
@@ -251,7 +260,8 @@ public final class MyStrategy implements Strategy {
 									   new Point(world.getWidth() - XMIN, world.getHeight() - YMIN)};
 		Arrays.sort(corners, new TankDistComparator(self));
 		for (Point corner: corners) {
-			if (!isEnemyCloser(self, world, corner)) {
+			Tank tank = getCloserEnemy(self, world, corner);
+			if (tank == null || tank.getDistanceTo(corner.x, corner.y) - self.getDistanceTo(corner.x, corner.y) < 200) {
 				return corner;
 			}
 		}
@@ -267,7 +277,7 @@ public final class MyStrategy implements Strategy {
 		
 		Collections.sort(walls, new TankDistComparator(self));
 		for (Point wall: walls) {
-			if (!isEnemyCloser(self, world, wall)) {
+			if (getCloserEnemy(self, world, wall) == null) {
 				return wall;
 			}
 		}
@@ -277,7 +287,7 @@ public final class MyStrategy implements Strategy {
 	private List<Tank> getAliveTanks(World world) {
 		List<Tank> res = new ArrayList<Tank>();
 		for (Tank tank: world.getTanks()) {
-			if (tank.getCrewHealth() > 0) {
+			if (isAlive(tank)) {
 				res.add(tank);
 			}
 		}
@@ -360,7 +370,7 @@ public final class MyStrategy implements Strategy {
 	    		} else {
 	    			driveBackward(move);
 	    		}
-	    	} if (bonusIndex != -1) {
+	    	} else if (bonusIndex != -1) {
 	    		Bonus bonus = world.getBonuses()[bonusIndex];
 	    		drive(self, move, bonus.getX(), bonus.getY());
 	    	} else {
