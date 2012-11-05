@@ -1,3 +1,4 @@
+
 import model.*;
 
 import static java.lang.StrictMath.PI;
@@ -5,11 +6,12 @@ import static java.lang.StrictMath.PI;
 public final class MyStrategy implements Strategy {
 	private static double MIN_SHOOT_ANGLE = PI / 180.0;
 	private static double MIN_DRIVE_ANGLE = PI / 6.0;
-	private static double MIN_SHOOT_DIST = 300;
+	private static double MIN_SHOOT_DIST = 500;
 	private static double MIN_HEALTH = 0.3;
 	private static double STABLE_HEALTH = 0.6;
 	private static double MIN_DURABILITY = 0.3;
 	private static double STABLE_DURABILITY = 0.6;
+	private static double MAX_PREMIUM_SHOOT_DIST = 500;
 	
 	private int getSmallestAngleEnemy(Tank self, World world) {
 		int index = -1;
@@ -152,20 +154,32 @@ public final class MyStrategy implements Strategy {
     	if (enemyIndex != -1) {
     		Tank enemy = tanks[enemyIndex];
     		double enemyAngle = self.getTurretAngleTo(enemy);
-    		//double enemyDist = self.getDistanceTo(enemy); // TODO: если совсем близко - стреляй!
+    		double enemyDist = self.getDistanceTo(enemy);
     		if (enemyAngle > MIN_SHOOT_ANGLE) {
     			move.setTurretTurn(1);
     		} else if (enemyAngle < -MIN_SHOOT_ANGLE) {
     			move.setTurretTurn(-1);
     		} else {
-		        move.setFireType(FireType.PREMIUM_PREFERRED);
+    			if (enemyDist > MAX_PREMIUM_SHOOT_DIST) {
+    				move.setFireType(FireType.REGULAR);
+    			} else {
+			        move.setFireType(FireType.PREMIUM_PREFERRED);
+    			}
     		}
     	}
+    	
+    	//double yborder = self.getY() < world.getHeight() / 2 ? 50 : world.getHeight() - 50;
+    	//double xborder = self.getX() < world.getWidth() / 2 ? 50 : world.getWidth() - 50;
+    		
     	
     	int bonusIndex = getImportantBonus(self, world);
     	if (bonusIndex != -1) {
     		Bonus bonus = world.getBonuses()[bonusIndex];
     		drive(self, move, bonus.getX(), bonus.getY());
+    	} else {
+    		double randX = Math.random() * world.getWidth();
+    		double randY = Math.random() * world.getHeight();
+    		drive(self, move, randX, randY);
     	}
     }
 
