@@ -72,7 +72,6 @@ enum States {
 public final class MyStrategy implements Strategy {
 	private static final double MIN_SHOOT_ANGLE = PI / 180;
 	private static final double MAX_SHELL_ANGLE = PI / 6;
-	private static final double MAX_TARGET_ANGLE = PI / 30;
 	private static final double MIN_DRIVE_ANGLE = PI / 6;
 	private static final double MIN_HEALTH = 0.3;
 	private static final double STABLE_HEALTH = 0.6;
@@ -81,6 +80,7 @@ public final class MyStrategy implements Strategy {
 	private static final double MAX_PREMIUM_SHOOT_DIST = 500;
 	private static final double XMIN = 100;
 	private static final double YMIN = 100;
+	private static final double MAX_BONUS_DIST = 600;
 
 	private States state;
 
@@ -150,13 +150,17 @@ public final class MyStrategy implements Strategy {
 				return nearestArmor;
 			}
 		}
-		if (relativeHealth >= STABLE_HEALTH	&& relativeDurability >= STABLE_DURABILITY) {
+		if (relativeHealth >= STABLE_HEALTH	&& relativeDurability >= STABLE_DURABILITY && self.getPremiumShellCount() < 2) {
 			int nearestWeapon = getNearestBonus(self, world, BonusType.AMMO_CRATE);
 			if (nearestWeapon != -1) {
 				return nearestWeapon;
 			}
 		}
-		return getNearestBonus(self, world);
+		int index = getNearestBonus(self, world);
+		if (index != -1 && self.getDistanceTo(world.getBonuses()[index]) < MAX_BONUS_DIST) {
+			return index;
+		}
+		return -1;
 	}
 
 	private void drive(Tank self, Move move, Point point) {
@@ -164,31 +168,37 @@ public final class MyStrategy implements Strategy {
 	}
 
 	private void drive(Tank self, Move move, double x, double y) {
-		if (self.getDistanceTo(x, y) < self.getHeight()) {
+		double frontPower = 0.75;
+		double rearPower = -1;
+		if (self.getDistanceTo(x, y) < self.getHeight() / 2) {
 			return;
 		}
 		double angle = self.getAngleTo(x, y);
 		if (-PI / 2 <= angle && angle <= PI / 2) {
 			if (angle > MIN_DRIVE_ANGLE) {
-				move.setLeftTrackPower(0.75);
-				move.setRightTrackPower(-1);
+				move.setLeftTrackPower(frontPower);
+				move.setRightTrackPower(rearPower);
 			} else if (angle < -MIN_DRIVE_ANGLE) {
-				move.setLeftTrackPower(-1);
-				move.setRightTrackPower(0.75);
+				move.setLeftTrackPower(rearPower);
+				move.setRightTrackPower(frontPower);
 			} else {
 				driveForward(move);
 			}
 		} else {
 			if (0 > angle && angle > -PI + MIN_DRIVE_ANGLE) {
-				move.setLeftTrackPower(0.75);
-				move.setRightTrackPower(-1);
+				move.setLeftTrackPower(frontPower);
+				move.setRightTrackPower(rearPower);
 			} else if (0 < angle && angle < PI - MIN_DRIVE_ANGLE) {
-				move.setLeftTrackPower(-1);
-				move.setRightTrackPower(0.75);
+				move.setLeftTrackPower(rearPower);
+				move.setRightTrackPower(frontPower);
 			} else {
 				driveBackward(move);
 			}
 		}
+	}
+	
+	private void quickDrive(Tank self, Move move, double x, double y) {
+		drive(self, move, x, y);
 	}
 
 	// TODO
@@ -206,28 +216,6 @@ public final class MyStrategy implements Strategy {
 	// return res;
 	// }
 
-	// FIXME: these two methods are wrong
-	private boolean shouldHideForward(Tank self, World world, List<Shell> shells) {
-		if (self.getY() < 2 * self.getHeight()
-				&& Math.abs(self.getAngle() - PI / 2) < PI / 6) {
-			return true;
-		}
-		if (self.getY() > world.getHeight() - 2 * self.getHeight()
-				&& Math.abs(-PI / 2 - self.getAngle()) < PI / 6) {
-			return false;
-		}
-		int directShells = 0;
-		for (Shell shell : shells) {
-			double angle = shell.getAngleTo(self);
-			// System.out.println("angle = " + PI / angle + "; dist = " +
-			// shell.getDistanceTo(self));
-			if (angle > 0) {
-				++directShells;
-			}
-		}
-		return directShells >= shells.size() - directShells;
-	}
-
 	private boolean shouldHideForwardFromTargeting(Tank self, World world,
 			List<Tank> enemies) {
 		if (self.getY() < 2 * self.getHeight()
@@ -241,8 +229,7 @@ public final class MyStrategy implements Strategy {
 		int directShells = 0;
 		for (Tank tank : enemies) {
 			double angle = tank.getTurretAngleTo(self);
-			// System.out.println("angle = " + PI / angle + "; dist = " +
-			// shell.getDistanceTo(self));
+			// System.out.println("angle = " + PI / angle + "; dist = " + shell.getDistanceTo(self));
 			if (angle > 0) {
 				++directShells;
 			}
@@ -255,25 +242,65 @@ public final class MyStrategy implements Strategy {
 		for (Shell shell : world.getShells()) {
 			double angle = shell.getAngleTo(self);
 			double dist = shell.getDistanceTo(self);
-			if (Math.abs(angle) < MAX_TARGET_ANGLE || 
-				(Math.abs(angle) < PI / 2 && dist * Math.sin(angle) < self.getHeight())) 
-			{
+			if (Math.abs(angle) < PI/2 && dist*Math.sin(angle) < self.getHeight())	{
 				res.add(shell);
 			}
 		}
 		return res;
 	}
 
-	// FIXME: wrong
 	private void avoidDanger(Tank self, World world, Move move, List<Shell> dangerShells) {
-		// System.out.println("avoid danger, tick = " + world.getTick());
-		if (shouldHideForward(self, world, dangerShells)) {
-			// System.out.println("forward");
-			driveForward(move);
-		} else {
-			// System.out.println("backward");
-			driveBackward(move);
+		System.out.println("avoid danger, tick = " + world.getTick());
+		Shell shell = dangerShells.get(0);
+		double shellAngle = shell.getAngle();
+		System.out.println("shellAngle = PI/" + PI/shellAngle);
+		
+		double dist = shell.getDistanceTo(self);
+		System.out.println("dist = " + dist);
+		
+		double angle = shell.getAngleTo(self);
+		System.out.println("angle = PI/" + PI/angle);
+		
+		double dist1 = dist * Math.cos(angle);
+		System.out.println("dist1 = " + dist1);
+		
+		System.out.println("self X: " + self.getX());
+		System.out.println("self Y: " + self.getY());
+		
+		System.out.println("shell X: " + shell.getX());
+		System.out.println("shell Y: " + shell.getY());
+		
+		double xInter = shell.getX() + dist1 * Math.cos(shellAngle);
+		double yInter = shell.getY() + dist1 * Math.sin(shellAngle);
+		
+		System.out.println("xInter = " + xInter);
+		System.out.println("yInter = " + yInter);
+		
+		double normAngle = PI/2 - angle;
+		if (normAngle > PI) {
+			normAngle -= 2*PI;
 		}
+		System.out.println("normAngle = PI/" + PI/normAngle);
+		
+		double h = self.getHeight();
+		System.out.println("h = " + h);
+		
+		double xDest1 = xInter + h*Math.cos(normAngle);
+		double yDest1 = yInter + h*Math.sin(normAngle);
+		double xDest2 = xInter - h*Math.cos(normAngle);
+		double yDest2 = yInter - h*Math.sin(normAngle);
+		double xDest, yDest;
+		if (Math.hypot(xDest1 - xInter, yDest1 - yInter) < Math.hypot(xDest2 - xInter, yDest2 - yInter)) {
+			xDest = xDest1;
+			yDest = yDest1;
+		} else {
+			xDest = xDest2;
+			yDest = yDest2;
+		}
+		System.out.println("xDest = " + xDest);
+		System.out.println("yDest = " + yDest);
+		
+		quickDrive(self, move, xDest, yDest);
 	}
 
 	private List<Tank> getTargetingEnemies(Tank self, World world) {
@@ -383,7 +410,7 @@ public final class MyStrategy implements Strategy {
 	private List<Unit> getObstacles(World world) {
 		List<Unit> res = new ArrayList<Unit>();
 		res.addAll(getDeadTanks(world));
-		// res.addAll(world.getBonuses());
+		res.addAll(Arrays.asList(world.getBonuses()));
 		return res;
 	}
 
@@ -493,18 +520,16 @@ public final class MyStrategy implements Strategy {
 			int bonusIndex = getImportantBonus(self, world);
 			List<Shell> dangerShells = getDangerShells(self, world);
 			List<Tank> targetingEnemies = getTargetingEnemies(self, world);
-			// if (!dangerShells.isEmpty()) {
-			// avoidDanger(self, world, move, dangerShells);
+			//if (!dangerShells.isEmpty()) {
+			//	avoidDanger(self, world, move, dangerShells);
 			// } else if (!targetingEnemies.isEmpty()) {
 			// avoidTargeting(self, world, move, targetingEnemies);
-			// } else
+			//} else 
 			if (bonusIndex != -1) {
 				Bonus bonus = world.getBonuses()[bonusIndex];
 				drive(self, move, bonus.getX(), bonus.getY());
 			} else {
-				double randX = Math.random() * world.getWidth();
-				double randY = Math.random() * world.getHeight();
-				drive(self, move, randX, randY);
+				drive(self, move, getNearestFreeCorner(self, world));
 			}
 		}
 	}
