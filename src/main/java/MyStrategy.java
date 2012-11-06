@@ -35,17 +35,18 @@ enum States {
 }
 
 public final class MyStrategy implements Strategy {
-	private static double MIN_SHOOT_ANGLE = PI / 180.0;
-	private static double MAX_SHELL_ANGLE = PI / 6.0;
-	private static double MIN_DRIVE_ANGLE = PI / 6.0;
-	private static double MIN_SHOOT_DIST = 500;
-	private static double MIN_HEALTH = 0.3;
-	private static double STABLE_HEALTH = 0.6;
-	private static double MIN_DURABILITY = 0.3;
-	private static double STABLE_DURABILITY = 0.6;
-	private static double MAX_PREMIUM_SHOOT_DIST = 500;
-	private static double XMIN = 100;
-	private static double YMIN = 100;
+	private static final double MIN_SHOOT_ANGLE = PI / 180;
+	private static final double MAX_SHELL_ANGLE = PI / 6;
+	private static final double MAX_TARGET_ANGLE = PI / 30;
+	private static final double MIN_DRIVE_ANGLE = PI / 6;
+	private static final double MIN_SHOOT_DIST = 500;
+	private static final double MIN_HEALTH = 0.3;
+	private static final double STABLE_HEALTH = 0.6;
+	private static final double MIN_DURABILITY = 0.3;
+	private static final double STABLE_DURABILITY = 0.6;
+	private static final double MAX_PREMIUM_SHOOT_DIST = 500;
+	private static final double XMIN = 100;
+	private static final double YMIN = 100;
 	
 	private States state;
 	
@@ -99,6 +100,18 @@ public final class MyStrategy implements Strategy {
     		}
     	}
     	return index;
+	}
+	
+	// FIXME
+	private int getDyingEnemy(World world) {
+		Tank[] tanks = world.getTanks();
+    	for (int i = 0; i < tanks.length; ++i) {
+    		Tank tank = tanks[i];
+    		if (!tank.isTeammate() && isAlive(tank) && tank.getCrewHealth() < 0.5 * tank.getCrewMaxHealth()) {
+    			return i;
+    		}
+		}
+		return -1;
 	}
 	
 	private int getNearestBonus(Tank self, World world) {
@@ -168,21 +181,21 @@ public final class MyStrategy implements Strategy {
 		double angle = self.getAngleTo(x, y);    		
 		if (-PI/2 <= angle && angle <= PI/2) {
 			if (angle > MIN_DRIVE_ANGLE) {
-				move.setLeftTrackPower(0.75);
+				move.setLeftTrackPower(1);
 				move.setRightTrackPower(-1);
 			} else if (angle < -MIN_DRIVE_ANGLE) {
 				move.setLeftTrackPower(-1);
-				move.setRightTrackPower(0.75);
+				move.setRightTrackPower(1);
 			} else {
 				driveForward(move);
 			}
 		} else {
 			if (0 > angle && angle > -PI + MIN_DRIVE_ANGLE) {
-				move.setLeftTrackPower(0.75);
+				move.setLeftTrackPower(1);
 				move.setRightTrackPower(-1);
 			} else if (0 < angle && angle < PI - MIN_DRIVE_ANGLE) {
 				move.setLeftTrackPower(-1);
-				move.setRightTrackPower(0.75);
+				move.setRightTrackPower(1);
 			} else {
 				driveBackward(move);
 			}
@@ -199,18 +212,18 @@ public final class MyStrategy implements Strategy {
 			if (!tank.isTeammate() && isAlive(tank)) {
 				continue;
 			}
-			if (Math.abs(angle) < MIN_SHOOT_ANGLE) {
-				return true;
-			}
-			if (self.getDistanceTo(tank) < self.getHeight() && Math.abs(angle) < PI/6) {
-				return true;
-			}
+//			if (Math.abs(angle) < MIN_SHOOT_ANGLE/3) {
+//				return true;
+//			}
+//			if (self.getDistanceTo(tank) < self.getHeight() && Math.abs(angle) < PI/6) {
+//				return true;
+//			}
 		}
-		for (Bonus bonus: world.getBonuses()) {
-			if (Math.abs(self.getTurretAngleTo(bonus)) < MIN_SHOOT_ANGLE) {
-				return true;
-			}
-		}
+//		for (Bonus bonus: world.getBonuses()) {
+//			if (Math.abs(self.getTurretAngleTo(bonus)) < MIN_SHOOT_ANGLE/3) {
+//				return true;
+//			}
+//		}
 		return false;
 	}
 	
@@ -228,6 +241,7 @@ public final class MyStrategy implements Strategy {
 //		return res;
 //	}
 	
+	// FIXME: these two methods are wrong
 	private boolean shouldHideForward(Tank self, World world, List<Shell> shells) {
 		if (self.getY() < 2*self.getHeight() && Math.abs(self.getAngle() - PI/2) < PI/6) {
 			return true;
@@ -245,18 +259,37 @@ public final class MyStrategy implements Strategy {
 		}
 		return directShells >= shells.size() - directShells;
 	}
+	
+	private boolean shouldHideForwardFromTargeting(Tank self, World world, List<Tank> enemies) {
+		if (self.getY() < 2*self.getHeight() && Math.abs(self.getAngle() - PI/2) < PI/6) {
+			return true;
+		}
+		if (self.getY() > world.getHeight() - 2*self.getHeight() && Math.abs(-PI/2 - self.getAngle()) < PI/6) {
+			return false;
+		}
+		int directShells = 0;
+		for (Tank tank: enemies) {
+			double angle = tank.getTurretAngleTo(self);
+			//System.out.println("angle = " + PI / angle + "; dist = " + shell.getDistanceTo(self));
+			if (angle > 0) {
+				++directShells;
+			}
+		}
+		return directShells >= enemies.size() - directShells;
+	}
 		
     private List<Shell> getDangerShells(Tank self, World world) {
     	List<Shell> res = new ArrayList<Shell>();
     	for (Shell shell: world.getShells()) {
     		double angle = shell.getAngleTo(self);
     		double dist = shell.getDistanceTo(self);
-    		if (Math.abs(angle) < MAX_SHELL_ANGLE || (Math.abs(angle) < PI/2 && dist * Math.sin(angle) < self.getHeight())) {
+    		if (Math.abs(angle) < MAX_TARGET_ANGLE || (Math.abs(angle) < PI/2 && dist * Math.sin(angle) < self.getHeight())) {
     			res.add(shell);
     		}
     	}
     	return res;
 	}	
+    // FIXME: wrong
 	private void avoidDanger(Tank self, World world, Move move, List<Shell> dangerShells) {
 		//System.out.println("avoid danger, tick = " + world.getTick());
 		if (shouldHideForward(self, world, dangerShells)) {
@@ -264,6 +297,26 @@ public final class MyStrategy implements Strategy {
 			driveForward(move);
 		} else {
 			//System.out.println("backward");
+			driveBackward(move);
+		}
+	}
+	
+	private List<Tank> getTargetingEnemies(Tank self, World world) {
+		List<Tank> res = new ArrayList<Tank>();
+		for (Tank tank: getAliveEnemies(world)) {
+			double angle = tank.getTurretAngleTo(self);
+			if (Math.abs(angle) < MAX_SHELL_ANGLE) {
+				res.add(tank);
+			}
+		}
+		return res;
+	}
+	
+    // FIXME: wrong
+	private void avoidTargeting(Tank self, World world, Move move, List<Tank> targetingEnemies) {
+		if (shouldHideForwardFromTargeting(self, world, targetingEnemies)) {
+			driveForward(move);
+		} else {
 			driveBackward(move);
 		}
 	}
@@ -319,6 +372,15 @@ public final class MyStrategy implements Strategy {
 		return res;
 	}
 	
+	private List<Tank> getAliveEnemies(World world) {
+		List<Tank> res = new ArrayList<Tank>();
+		for (Tank tank: getAliveTanks(world)) {
+			if (!tank.isTeammate()) {
+				res.add(tank);
+			}
+		}
+		return res;
+	}	
 	private boolean shouldChangeState(Tank self, World world) {
 		if (self.getCrewHealth() < self.getCrewMaxHealth() * 0.66) {
 			return true;
@@ -337,9 +399,12 @@ public final class MyStrategy implements Strategy {
 		Tank[] tanks = world.getTanks();
     	int smallestAngleEnemy = getSmallestAngleEnemy(self, world);
     	int nearestEnemy = getNearestEnemy(self, world);
+    	int dyingEnemy = getDyingEnemy(world);
     	
     	int enemyIndex = -1;
-    	if (smallestAngleEnemy == nearestEnemy) {
+    	if (dyingEnemy != -1) {
+    		enemyIndex = dyingEnemy;
+    	} else if (smallestAngleEnemy == nearestEnemy) {
     		enemyIndex = nearestEnemy;
     	} else if (nearestEnemy == -1) {
     		enemyIndex = smallestAngleEnemy;
@@ -389,9 +454,13 @@ public final class MyStrategy implements Strategy {
 		if (state == States.Walk) {
 	    	int bonusIndex = getImportantBonus(self, world);
 	    	List<Shell> dangerShells = getDangerShells(self, world);
-	    	if (!dangerShells.isEmpty()) {
-	    		avoidDanger(self, world, move, dangerShells);
-	    	} else if (bonusIndex != -1) {
+	    	List<Tank> targetingEnemies = getTargetingEnemies(self, world);
+	    	//if (!dangerShells.isEmpty()) {
+	    		//avoidDanger(self, world, move, dangerShells);
+	    	//} else if (!targetingEnemies.isEmpty()) {
+	    		//avoidTargeting(self, world, move, targetingEnemies);
+	    	//} else 
+	    		if (bonusIndex != -1) {
 	    		Bonus bonus = world.getBonuses()[bonusIndex];
 	    		drive(self, move, bonus.getX(), bonus.getY());
 	    	} else {
