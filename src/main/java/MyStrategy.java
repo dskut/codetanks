@@ -135,6 +135,10 @@ public final class MyStrategy implements Strategy {
 		
 		return new Rectangle(p1, p2, p3, p4);
 	}
+	
+	private boolean isInRange(double a, double b, double x) {
+		return a <= x && x <= b;
+	}
 
 	private int getNearestBonus(Tank self, World world) {
 		int res = -1;
@@ -273,6 +277,18 @@ public final class MyStrategy implements Strategy {
 		}
 		return directShells >= enemies.size() - directShells;
 	}
+	
+	private boolean isRearToWall(Tank self, World world) {
+		double x = self.getX() - self.getHeight() * Math.cos(self.getAngle());
+		double y = self.getY() - self.getHeight() * Math.sin(self.getAngle());
+		return !isInRange(0, world.getWidth(), x) || !isInRange(0, world.getHeight(), y);
+	}
+	
+	private boolean isFrontToWall(Tank self, World world) {
+		double x = self.getX() + self.getHeight() * Math.cos(self.getAngle());
+		double y = self.getY() + self.getHeight() * Math.sin(self.getAngle());
+		return !isInRange(0, world.getWidth(), x) || !isInRange(0, world.getHeight(), y);
+	}
 
 	private List<Shell> getDangerShells(Tank self, World world) {
 		List<Shell> res = new ArrayList<Shell>();
@@ -287,18 +303,23 @@ public final class MyStrategy implements Strategy {
 	}
 
 	private void avoidDanger(Tank self, World world, Move move, List<Shell> dangerShells) {
-		Shell shell = dangerShells.get(0);
-		double angle = shell.getAngleTo(self);
-		double dist = shell.getDistanceTo(self);
-		double dist1 = dist * Math.cos(angle);
-		double shellAngle = shell.getAngle();
-		double xInter = shell.getX() + dist1 * Math.cos(shellAngle);
-		double yInter = shell.getY() + dist1 * Math.sin(shellAngle);
-		double myAngle = self.getAngleTo(xInter, yInter);
-		if (Math.abs(myAngle) > PI/2) {
+		if (isRearToWall(self, world)) {
 			driveForward(move);
-		} else {
+		} else if (isFrontToWall(self, world)) {
 			driveBackward(move);
+		} else {
+			Shell shell = dangerShells.get(0); // FIXME
+			double angle = shell.getAngleTo(self);
+			double dist = shell.getDistanceTo(self);
+			double dist1 = dist * Math.cos(angle);
+			double shellAngle = shell.getAngle();
+			double xInter = shell.getX() + dist1 * Math.cos(shellAngle);
+			double yInter = shell.getY() + dist1 * Math.sin(shellAngle);			double myAngle = self.getAngleTo(xInter, yInter);
+			if (Math.abs(myAngle) > PI/2) {
+				driveForward(move);
+			} else {
+				driveBackward(move);
+			}
 		}
 	}
 
@@ -426,11 +447,6 @@ public final class MyStrategy implements Strategy {
 			return false;
 		}
 		return isInSight(self, obstacle);
-//		double enemyAngle = self.getTurretAngleTo(enemy);
-//		double obstacleAngle = self.getTurretAngleTo(obstacle);
-//		
-//		double diff = Math.abs(enemyAngle - obstacleAngle);
-//		return diff < MIN_SHOOT_ANGLE / 2 || diff > 2*PI - MIN_SHOOT_ANGLE / 2;
 	}
 
 	private boolean existObstacle(Tank self, Tank enemy, List<Unit> obstacles) {
