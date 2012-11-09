@@ -86,8 +86,8 @@ public final class MyStrategy implements Strategy {
 	private static final double MIN_DURABILITY = 0.3;
 	private static final double STABLE_DURABILITY = 0.6;
 	private static final double MAX_PREMIUM_SHOOT_DIST = 500;
-	private static final double XMIN = 100;
-	private static final double YMIN = 100;
+	private static final double XMIN = 20;
+	private static final double YMIN = 20;
 	private static final double MAX_BONUS_DIST = 600;
 
 	private States state;
@@ -201,9 +201,7 @@ public final class MyStrategy implements Strategy {
 		drive(self, move, point.x, point.y);
 	}
 
-	private void drive(Tank self, Move move, double x, double y) {
-		double frontPower = 0.75;
-		double rearPower = -1;
+	private void drive(Tank self, Move move, double x, double y, double frontPower, double rearPower) {
 		if (self.getDistanceTo(x, y) < self.getHeight() / 2) {
 			return;
 		}
@@ -231,15 +229,23 @@ public final class MyStrategy implements Strategy {
 		}
 	}
 	
+	private void drive(Tank self, Move move, double x, double y) {
+		drive(self, move, x, y, 0.75, -1);
+	}
+	
 	private void quickDrive(Tank self, Move move, double x, double y) {
-		drive(self, move, x, y);
+		drive(self, move, x, y, 1, -0.75);
+	}
+	
+	private void quickDrive(Tank self, Move move, Point p) {
+		quickDrive(self, move, p.x, p.y);
 	}
 
 	// TODO
 	// private ArrayList<Tank> getShootingEnemies(Tank self, World world) {
 	// ArrayList<Tank> res = new ArrayList<Tank>();
 	// for (Tank tank: world.getTanks()) {
-	// if (tank.isTeammate() || !isAlive(tank)) {
+	// if ((tank.isTeammate() && tang.getId() != self.getId()) || !isAlive(tank)) {
 	// continue;
 	// }
 	// if (Math.abs(tank.getTurretAngleTo(self)) < MIN_SHOOT_ANGLE &&
@@ -281,57 +287,19 @@ public final class MyStrategy implements Strategy {
 	}
 
 	private void avoidDanger(Tank self, World world, Move move, List<Shell> dangerShells) {
-		System.out.println("avoid danger, tick = " + world.getTick());
 		Shell shell = dangerShells.get(0);
-		double shellAngle = shell.getAngle();
-		System.out.println("shellAngle = PI/" + PI/shellAngle);
-		
-		double dist = shell.getDistanceTo(self);
-		System.out.println("dist = " + dist);
-		
 		double angle = shell.getAngleTo(self);
-		System.out.println("angle = PI/" + PI/angle);
-		
+		double dist = shell.getDistanceTo(self);
 		double dist1 = dist * Math.cos(angle);
-		System.out.println("dist1 = " + dist1);
-		
-		System.out.println("self X: " + self.getX());
-		System.out.println("self Y: " + self.getY());
-		
-		System.out.println("shell X: " + shell.getX());
-		System.out.println("shell Y: " + shell.getY());
-		
+		double shellAngle = shell.getAngle();
 		double xInter = shell.getX() + dist1 * Math.cos(shellAngle);
 		double yInter = shell.getY() + dist1 * Math.sin(shellAngle);
-		
-		System.out.println("xInter = " + xInter);
-		System.out.println("yInter = " + yInter);
-		
-		double normAngle = PI/2 - angle;
-		if (normAngle > PI) {
-			normAngle -= 2*PI;
-		}
-		System.out.println("normAngle = PI/" + PI/normAngle);
-		
-		double h = self.getHeight();
-		System.out.println("h = " + h);
-		
-		double xDest1 = xInter + h*Math.cos(normAngle);
-		double yDest1 = yInter + h*Math.sin(normAngle);
-		double xDest2 = xInter - h*Math.cos(normAngle);
-		double yDest2 = yInter - h*Math.sin(normAngle);
-		double xDest, yDest;
-		if (Math.hypot(xDest1 - xInter, yDest1 - yInter) < Math.hypot(xDest2 - xInter, yDest2 - yInter)) {
-			xDest = xDest1;
-			yDest = yDest1;
+		double myAngle = self.getAngleTo(xInter, yInter);
+		if (Math.abs(myAngle) > PI/2) {
+			driveForward(move);
 		} else {
-			xDest = xDest2;
-			yDest = yDest2;
+			driveBackward(move);
 		}
-		System.out.println("xDest = " + xDest);
-		System.out.println("yDest = " + yDest);
-		
-		quickDrive(self, move, xDest, yDest);
 	}
 
 	private List<Tank> getTargetingEnemies(Tank self, World world) {
@@ -425,10 +393,10 @@ public final class MyStrategy implements Strategy {
 		return res;
 	}
 
-	private List<Tank> getAliveTeammates(World world) {
+	private List<Tank> getAliveTeammates(Tank self, World world) {
 		List<Tank> res = new ArrayList<Tank>();
 		for (Tank tank : getAliveTanks(world)) {
-			if (tank.isTeammate()) {
+			if (tank.isTeammate() && tank.getId() != self.getId()) {
 				res.add(tank);
 			}
 		}
@@ -441,17 +409,28 @@ public final class MyStrategy implements Strategy {
 		res.addAll(Arrays.asList(world.getBonuses()));
 		return res;
 	}
+	
+	private boolean isInSight(Tank self, Unit obstacle) {
+		Rectangle rect = getCoordinates(obstacle);
+		double a1 = self.getTurretAngleTo(rect.Points[0].x, rect.Points[0].y);
+		double a2 = self.getTurretAngleTo(rect.Points[1].x, rect.Points[1].y);
+		double a3 = self.getTurretAngleTo(rect.Points[2].x, rect.Points[2].y);
+		double a4 = self.getTurretAngleTo(rect.Points[3].x, rect.Points[3].y);
+		double[] angles = new double[] {a1, a2, a3, a4};
+		Arrays.sort(angles);
+		return angles[0] * angles[3] < 0;
+	}
 
 	private boolean isObstacle(Tank self, Tank enemy, Unit obstacle) {
 		if (self.getDistanceTo(enemy) < self.getDistanceTo(obstacle)) {
 			return false;
 		}
-		
-		double enemyAngle = self.getTurretAngleTo(enemy);
-		double obstacleAngle = self.getTurretAngleTo(obstacle);
-		
-		double diff = Math.abs(enemyAngle - obstacleAngle);
-		return diff < MIN_SHOOT_ANGLE / 2 || diff > 2*PI - MIN_SHOOT_ANGLE / 2;
+		return isInSight(self, obstacle);
+//		double enemyAngle = self.getTurretAngleTo(enemy);
+//		double obstacleAngle = self.getTurretAngleTo(obstacle);
+//		
+//		double diff = Math.abs(enemyAngle - obstacleAngle);
+//		return diff < MIN_SHOOT_ANGLE / 2 || diff > 2*PI - MIN_SHOOT_ANGLE / 2;
 	}
 
 	private boolean existObstacle(Tank self, Tank enemy, List<Unit> obstacles) {
@@ -466,7 +445,7 @@ public final class MyStrategy implements Strategy {
 	private List<Tank> selectOpenEnemies(Tank self, World world, List<Tank> enemies) {
 		List<Tank> res = new ArrayList<Tank>();
 		List<Unit> obstacles = getObstacles(world);
-		obstacles.addAll(getAliveTeammates(world));
+		obstacles.addAll(getAliveTeammates(self, world));
 		for (Tank enemy : enemies) {
 			if (!existObstacle(self, enemy, obstacles)) {
 				res.add(enemy);
@@ -533,9 +512,9 @@ public final class MyStrategy implements Strategy {
 			Point corner = getNearestFreeCorner(self, world);
 			if (corner == null) {
 				Point wall = getNearestWall(self, world);
-				drive(self, move, wall);
+				quickDrive(self, move, wall);
 			} else {
-				drive(self, move, corner);
+				quickDrive(self, move, corner);
 			}
 			if (shouldChangeState(self, world)) {
 				state = States.Walk;
@@ -546,12 +525,11 @@ public final class MyStrategy implements Strategy {
 			int bonusIndex = getImportantBonus(self, world);
 			List<Shell> dangerShells = getDangerShells(self, world);
 			List<Tank> targetingEnemies = getTargetingEnemies(self, world);
-			//if (!dangerShells.isEmpty()) {
-			//	avoidDanger(self, world, move, dangerShells);
+			if (!dangerShells.isEmpty()) {
+				avoidDanger(self, world, move, dangerShells);
 			// } else if (!targetingEnemies.isEmpty()) {
 			// avoidTargeting(self, world, move, targetingEnemies);
-			//} else 
-			if (bonusIndex != -1) {
+			} else if (bonusIndex != -1) {
 				Bonus bonus = world.getBonuses()[bonusIndex];
 				drive(self, move, bonus.getX(), bonus.getY());
 			} else {
