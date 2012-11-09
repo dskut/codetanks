@@ -418,11 +418,11 @@ public final class MyStrategy implements Strategy {
 		if (self.getDistanceTo(enemy) < self.getDistanceTo(obstacle)) {
 			return false;
 		}
-		double enemyAngle = self.getAngleTo(enemy);
-		double obstacleAngle = self.getAngleTo(obstacle);
+		double enemyAngle = self.getTurretAngleTo(enemy);
+		double obstacleAngle = self.getTurretAngleTo(obstacle);
 		double diff = Math.abs(enemyAngle - obstacleAngle);
 		// FIXME
-		return diff < MIN_SHOOT_ANGLE || diff > 2*PI - MIN_SHOOT_ANGLE;
+		return diff < MIN_SHOOT_ANGLE / 2 || diff > 2*PI - MIN_SHOOT_ANGLE / 2;
 	}
 
 	private boolean existObstacle(Tank self, Tank enemy, List<Unit> obstacles) {
@@ -473,16 +473,16 @@ public final class MyStrategy implements Strategy {
 
 	private void tryShoot(Tank self, Move move, Tank enemy) {
 		double angle = self.getTurretAngleTo(enemy);
-		double dist = self.getDistanceTo(enemy);
 		// FIXME: better targeting
-		if (angle > MIN_SHOOT_ANGLE) {
-			move.setTurretTurn(1);
-		} else if (angle < -MIN_SHOOT_ANGLE) {
-			move.setTurretTurn(-1);
-		} else if (dist > MAX_PREMIUM_SHOOT_DIST) {
-			move.setFireType(FireType.REGULAR);
+		if (-MIN_SHOOT_ANGLE <= angle && angle <= MIN_SHOOT_ANGLE) {
+			double dist = self.getDistanceTo(enemy);
+			if (dist > MAX_PREMIUM_SHOOT_DIST) {
+				move.setFireType(FireType.REGULAR);
+			} else {
+				move.setFireType(FireType.PREMIUM_PREFERRED);
+			}
 		} else {
-			move.setFireType(FireType.PREMIUM_PREFERRED);
+			turnTurretTo(self, move, enemy);
 		}
 	}
 
