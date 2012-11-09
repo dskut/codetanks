@@ -17,6 +17,14 @@ class Point {
 	}
 }
 
+class Rectangle {
+	public Point[] Points;
+	
+	public Rectangle(Point p1, Point p2, Point p3, Point p4) {
+		Points = new Point[] {p1, p2, p3, p4};
+	}
+}
+
 class TankDistComparator implements Comparator<Point> {
 	private Tank tank;
 
@@ -100,6 +108,32 @@ public final class MyStrategy implements Strategy {
 
 	private boolean isAlive(Tank tank) {
 		return tank.getCrewHealth() > 0 && tank.getHullDurability() > 0;
+	}
+	
+	private Rectangle getCoordinates(Unit unit) {
+		double xc = unit.getX();
+		double yc = unit.getY();
+		double a = unit.getAngle();
+		double w = unit.getWidth();
+		double h = unit.getHeight();
+		
+		double x1 = xc + w / 2 * Math.sin(a) - h / 2 * Math.cos(a);
+		double y1 = yc + h / 2 * Math.sin(a) + w / 2 * Math.cos(a);
+		Point p1 = new Point(x1, y1);
+		
+		double x2 = xc + w / 2 * Math.sin(a) + h / 2 * Math.cos(a);
+		double y2 = yc - h / 2 * Math.sin(a) + w / 2 * Math.cos(a);
+		Point p2 = new Point(x2, y2);
+		
+		double x3 = xc - w / 2 * Math.sin(a) + h / 2 * Math.cos(a);
+		double y3 = yc - h / 2 * Math.sin(a) - w / 2 * Math.cos(a);
+		Point p3 = new Point(x3, y3);
+		
+		double x4 = xc - w / 2 * Math.sin(a) - h / 2 * Math.cos(a);
+		double y4 = yc + h / 2 * Math.sin(a) - w / 2 * Math.cos(a);
+		Point p4 = new Point(x4, y4);
+		
+		return new Rectangle(p1, p2, p3, p4);
 	}
 
 	private int getNearestBonus(Tank self, World world) {
@@ -216,14 +250,11 @@ public final class MyStrategy implements Strategy {
 	// return res;
 	// }
 
-	private boolean shouldHideForwardFromTargeting(Tank self, World world,
-			List<Tank> enemies) {
-		if (self.getY() < 2 * self.getHeight()
-				&& Math.abs(self.getAngle() - PI / 2) < PI / 6) {
+	private boolean shouldHideForwardFromTargeting(Tank self, World world, List<Tank> enemies) {
+		if (self.getY() < 2 * self.getHeight() && Math.abs(self.getAngle() - PI / 2) < PI / 6) {
 			return true;
 		}
-		if (self.getY() > world.getHeight() - 2 * self.getHeight()
-				&& Math.abs(-PI / 2 - self.getAngle()) < PI / 6) {
+		if (self.getY() > world.getHeight() - 2 * self.getHeight() && Math.abs(-PI / 2 - self.getAngle()) < PI / 6) {
 			return false;
 		}
 		int directShells = 0;
@@ -242,7 +273,7 @@ public final class MyStrategy implements Strategy {
 		for (Shell shell : world.getShells()) {
 			double angle = shell.getAngleTo(self);
 			double dist = shell.getDistanceTo(self);
-			if (Math.abs(angle) < PI/2 && dist*Math.sin(angle) < self.getHeight())	{
+			if (Math.abs(angle) < PI/2 && dist*Math.sin(angle) < self.getHeight()) {
 				res.add(shell);
 			}
 		}
@@ -326,8 +357,7 @@ public final class MyStrategy implements Strategy {
 	private Tank getCloserEnemy(Tank self, World world, Point point) {
 		double selfDist = self.getDistanceTo(point.x, point.y);
 		for (Tank tank : world.getTanks()) {
-			if (isAlive(tank)
-					&& tank.getDistanceTo(point.x, point.y) < selfDist) {
+			if (isAlive(tank) && tank.getDistanceTo(point.x, point.y) < selfDist) {
 				return tank;
 			}
 		}
@@ -336,15 +366,13 @@ public final class MyStrategy implements Strategy {
 
 	private Point getNearestFreeCorner(Tank self, World world) {
 		Point[] corners = new Point[] { new Point(XMIN, YMIN),
-				new Point(XMIN, world.getHeight() - YMIN),
-				new Point(world.getWidth() - XMIN, YMIN),
-				new Point(world.getWidth() - XMIN, world.getHeight() - YMIN) };
+										new Point(XMIN, world.getHeight() - YMIN),
+										new Point(world.getWidth() - XMIN, YMIN),
+										new Point(world.getWidth() - XMIN, world.getHeight() - YMIN) };
 		Arrays.sort(corners, new TankDistComparator(self));
 		for (Point corner : corners) {
 			Tank tank = getCloserEnemy(self, world, corner);
-			if (tank == null
-					|| tank.getDistanceTo(corner.x, corner.y)
-							- self.getDistanceTo(corner.x, corner.y) < 200) {
+			if (tank == null || tank.getDistanceTo(corner.x, corner.y)	- self.getDistanceTo(corner.x, corner.y) < 200) {
 				return corner;
 			}
 		}
@@ -418,10 +446,11 @@ public final class MyStrategy implements Strategy {
 		if (self.getDistanceTo(enemy) < self.getDistanceTo(obstacle)) {
 			return false;
 		}
+		
 		double enemyAngle = self.getTurretAngleTo(enemy);
 		double obstacleAngle = self.getTurretAngleTo(obstacle);
+		
 		double diff = Math.abs(enemyAngle - obstacleAngle);
-		// FIXME
 		return diff < MIN_SHOOT_ANGLE / 2 || diff > 2*PI - MIN_SHOOT_ANGLE / 2;
 	}
 
@@ -434,8 +463,7 @@ public final class MyStrategy implements Strategy {
 		return false;
 	}
 
-	private List<Tank> selectOpenEnemies(Tank self, World world,
-			List<Tank> enemies) {
+	private List<Tank> selectOpenEnemies(Tank self, World world, List<Tank> enemies) {
 		List<Tank> res = new ArrayList<Tank>();
 		List<Unit> obstacles = getObstacles(world);
 		obstacles.addAll(getAliveTeammates(world));
@@ -463,7 +491,6 @@ public final class MyStrategy implements Strategy {
 
 	private void turnTurretTo(Tank self, Move move, Tank enemy) {
 		double angle = self.getTurretAngleTo(enemy);
-		// FIXME
 		if (angle > MIN_SHOOT_ANGLE) {
 			move.setTurretTurn(1);
 		} else if (angle < -MIN_SHOOT_ANGLE) {
@@ -473,7 +500,6 @@ public final class MyStrategy implements Strategy {
 
 	private void tryShoot(Tank self, Move move, Tank enemy) {
 		double angle = self.getTurretAngleTo(enemy);
-		// FIXME: better targeting
 		if (-MIN_SHOOT_ANGLE <= angle && angle <= MIN_SHOOT_ANGLE) {
 			double dist = self.getDistanceTo(enemy);
 			if (dist > MAX_PREMIUM_SHOOT_DIST) {
