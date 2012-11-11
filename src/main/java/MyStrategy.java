@@ -33,8 +33,7 @@ class TankDistComparator implements Comparator<Point> {
 	}
 
 	public int compare(Point first, Point second) {
-		double diff = tank.getDistanceTo(first.x, first.y)
-				- tank.getDistanceTo(second.x, second.y);
+		double diff = tank.getDistanceTo(first.x, first.y)	- tank.getDistanceTo(second.x, second.y);
 		return (int) diff;
 	}
 }
@@ -42,6 +41,7 @@ class TankDistComparator implements Comparator<Point> {
 class EnemiesComparator implements Comparator<Tank> {
 	private static final double MIN_ENEMY_HEALTH = 0.4;
 	private static final double MIN_SHOOT_DIST = 500;
+	private static final double CRITICAL_DIST = 100;
 	private Tank self;
 
 	public EnemiesComparator(Tank self) {
@@ -50,19 +50,23 @@ class EnemiesComparator implements Comparator<Tank> {
 
 	// 1 mins first is better to shoot, -1 otherwise
 	public int compare(Tank first, Tank second) {
-		double firstHealth = (double) first.getCrewHealth()
-				/ first.getCrewMaxHealth();
-		double secondHealth = (double) second.getCrewHealth()
-				/ second.getCrewMaxHealth();
-		if (firstHealth <= MIN_ENEMY_HEALTH && secondHealth > MIN_ENEMY_HEALTH) {
+		double firstDist = self.getDistanceTo(first);
+		double secondDist = self.getDistanceTo(second);
+		if (firstDist < CRITICAL_DIST) {
 			return 1;
-		} else if (firstHealth > MIN_ENEMY_HEALTH
-				&& secondHealth <= MIN_ENEMY_HEALTH) {
+		}
+		if (secondDist < CRITICAL_DIST) {
 			return -1;
 		}
 
-		double firstDist = self.getDistanceTo(first);
-		double secondDist = self.getDistanceTo(second);
+		double firstHealth = (double) first.getCrewHealth() / first.getCrewMaxHealth();
+		double secondHealth = (double) second.getCrewHealth()	/ second.getCrewMaxHealth();
+		if (firstHealth <= MIN_ENEMY_HEALTH && secondHealth > MIN_ENEMY_HEALTH) {
+			return 1;
+		} else if (firstHealth > MIN_ENEMY_HEALTH && secondHealth <= MIN_ENEMY_HEALTH) {
+			return -1;
+		}
+
 		double firstAngle = Math.abs(self.getTurretAngleTo(first));
 		double secondAngle = Math.abs(self.getTurretAngleTo(second));
 		if (firstDist <= MIN_SHOOT_DIST && secondDist <= MIN_SHOOT_DIST) {
@@ -73,8 +77,10 @@ class EnemiesComparator implements Comparator<Tank> {
 }
 
 enum States {
-	Init, // in the start phase - sit in corner
-	Walk, // then - walk around map
+	Init,
+	InCorner,
+	Walk,
+	OneOnOne,
 }
 
 public final class MyStrategy implements Strategy {
@@ -89,6 +95,8 @@ public final class MyStrategy implements Strategy {
 	private static final double XMIN = 20;
 	private static final double YMIN = 20;
 	private static final double MAX_BONUS_DIST = 600;
+	private static final int INIT_TICKS = 60;
+	private static final double SHELTER_DIST = 200;
 
 	private States state;
 
@@ -201,10 +209,6 @@ public final class MyStrategy implements Strategy {
 		return -1;
 	}
 
-	private void drive(Tank self, Move move, Point point) {
-		drive(self, move, point.x, point.y);
-	}
-
 	private void drive(Tank self, Move move, double x, double y, double frontPower, double rearPower) {
 		if (self.getDistanceTo(x, y) < self.getHeight() / 2) {
 			return;
@@ -235,6 +239,14 @@ public final class MyStrategy implements Strategy {
 	
 	private void drive(Tank self, Move move, double x, double y) {
 		drive(self, move, x, y, 0.75, -1);
+	}
+	
+	private void drive(Tank self, Move move, Point point) {
+		drive(self, move, point.x, point.y);
+	}
+	
+	private void drive(Tank self, Move move, Unit unit) {
+		drive(self, move, unit.getX(), unit.getY());
 	}
 	
 	private void quickDrive(Tank self, Move move, double x, double y) {
@@ -314,7 +326,8 @@ public final class MyStrategy implements Strategy {
 			double dist1 = dist * Math.cos(angle);
 			double shellAngle = shell.getAngle();
 			double xInter = shell.getX() + dist1 * Math.cos(shellAngle);
-			double yInter = shell.getY() + dist1 * Math.sin(shellAngle);			double myAngle = self.getAngleTo(xInter, yInter);
+			double yInter = shell.getY() + dist1 * Math.sin(shellAngle);
+			double myAngle = self.getAngleTo(xInter, yInter);
 			if (Math.abs(myAngle) > PI/2) {
 				driveForward(move);
 			} else {
@@ -345,8 +358,8 @@ public final class MyStrategy implements Strategy {
 
 	private Tank getCloserEnemy(Tank self, World world, Point point) {
 		double selfDist = self.getDistanceTo(point.x, point.y);
-		for (Tank tank : world.getTanks()) {
-			if (isAlive(tank) && tank.getDistanceTo(point.x, point.y) < selfDist) {
+		for (Tank tank : getAliveEnemies(world)) {
+			if (tank.getDistanceTo(point.x, point.y) < selfDist) {
 				return tank;
 			}
 		}
@@ -361,7 +374,7 @@ public final class MyStrategy implements Strategy {
 		Arrays.sort(corners, new TankDistComparator(self));
 		for (Point corner : corners) {
 			Tank tank = getCloserEnemy(self, world, corner);
-			if (tank == null || tank.getDistanceTo(corner.x, corner.y)	- self.getDistanceTo(corner.x, corner.y) < 200) {
+			if (tank == null || self.getDistanceTo(corner.x, corner.y) - tank.getDistanceTo(corner.x, corner.y) < 100) {
 				return corner;
 			}
 		}
@@ -470,7 +483,7 @@ public final class MyStrategy implements Strategy {
 		return res;
 	}
 
-	private boolean shouldChangeState(Tank self, World world) {
+	private boolean shouldWalk(Tank self, World world) {
 		if (self.getCrewHealth() < self.getCrewMaxHealth() * 0.66) {
 			return true;
 		}
@@ -479,6 +492,9 @@ public final class MyStrategy implements Strategy {
 		}
 		List<Tank> alive = getAliveTanks(world);
 		if (alive.size() <= 4) {
+			return true;
+		}
+		if (getTargetingEnemies(self, world).size() > 1) {
 			return true;
 		}
 		return false;
@@ -506,6 +522,29 @@ public final class MyStrategy implements Strategy {
 			turnTurretTo(self, move, enemy);
 		}
 	}
+	
+	private Tank getNearestTank(Tank self, List<Tank> tanks) {
+		Tank res = tanks.get(0);
+		for (Tank tank: tanks) {
+			if (self.getDistanceTo(tank) < self.getDistanceTo(res)) {
+				res = tank;
+			}
+		}
+		return res;
+	}
+	
+	private Point findShelter(Tank self, Tank enemy, World world) {
+		List<Tank> deads = getDeadTanks(world);
+		if (deads.isEmpty()) {
+			return getNearestFreeCorner(self, world);
+		}
+		Tank shelter = getNearestTank(self, deads);
+		double angle = enemy.getAngleTo(shelter);
+		double x = shelter.getX() + SHELTER_DIST * Math.cos(angle);
+		double y = shelter.getY() + SHELTER_DIST * Math.sin(angle);
+		return new Point(x, y);
+	}
+
 
 	private void selectShootMove(Tank self, World world, Move move) {
 		List<Tank> enemies = getAliveEnemies(world);
@@ -522,9 +561,16 @@ public final class MyStrategy implements Strategy {
 		Tank enemy = Collections.max(openEnemies, new EnemiesComparator(self));
 		tryShoot(self, move, enemy);
 	}
-
+	
 	private void selectDriveMove(Tank self, World world, Move move) {
 		if (state == States.Init) {
+			driveBackward(move);
+			if (world.getTick() >= INIT_TICKS) {
+				state = States.InCorner;
+			}
+			return;
+		}
+		if (state == States.InCorner) {
 			Point corner = getNearestFreeCorner(self, world);
 			if (corner == null) {
 				Point wall = getNearestWall(self, world);
@@ -532,7 +578,7 @@ public final class MyStrategy implements Strategy {
 			} else {
 				quickDrive(self, move, corner);
 			}
-			if (shouldChangeState(self, world)) {
+			if (shouldWalk(self, world)) {
 				state = States.Walk;
 			}
 			return;
@@ -541,22 +587,45 @@ public final class MyStrategy implements Strategy {
 			int bonusIndex = getImportantBonus(self, world);
 			List<Shell> dangerShells = getDangerShells(self, world);
 			List<Tank> targetingEnemies = getTargetingEnemies(self, world);
+			Point nearestCorner = getNearestFreeCorner(self, world);
 			if (!dangerShells.isEmpty()) {
 				avoidDanger(self, world, move, dangerShells);
 			// } else if (!targetingEnemies.isEmpty()) {
 			// avoidTargeting(self, world, move, targetingEnemies);
 			} else if (bonusIndex != -1) {
 				Bonus bonus = world.getBonuses()[bonusIndex];
-				drive(self, move, bonus.getX(), bonus.getY());
+				drive(self, move, bonus);
+			} else if (nearestCorner != null) {
+				drive(self, move, nearestCorner);
 			} else {
-				drive(self, move, getNearestFreeCorner(self, world));
+				drive(self, move, getNearestWall(self, world));
 			}
+			if (getAliveEnemies(world).size() == 1) {
+				state = States.OneOnOne;
+			}
+			return;
+		}
+		if (state == States.OneOnOne) {
+			Tank enemy = getAliveEnemies(world).get(0);
+			List<Shell> dangerShells = getDangerShells(self, world);
+			int bonusIndex = getImportantBonus(self, world);
+			if (!dangerShells.isEmpty()) {
+				avoidDanger(self, world, move, dangerShells);
+			} else if (bonusIndex != -1) {
+				Bonus bonus = world.getBonuses()[bonusIndex];
+				drive(self, move, bonus);
+			} else if (enemy.getCrewHealth() < self.getCrewHealth()) {
+				drive(self, move, enemy);
+			} else {
+				drive(self, move, findShelter(self, enemy, world));
+			}
+			return;
 		}
 	}
 
 	@Override
 	public void move(Tank self, World world, Move move) {
-		// System.out.println("tick: " + world.getTick());
+	    //System.out.println("tick: " + world.getTick());
 		selectShootMove(self, world, move);
 		selectDriveMove(self, world, move);
 	}
