@@ -332,7 +332,7 @@ public class MediumStrategy {
 		List<Tank> res = new ArrayList<Tank>();
 		for (Tank tank : getAliveEnemies()) {
 			double angle = tank.getTurretAngleTo(self);
-			if (Math.abs(angle) < MAX_SHELL_ANGLE) {
+			if (Math.abs(angle) < 4*MIN_SHOOT_ANGLE) {
 				res.add(tank);
 			}
 		}
@@ -347,9 +347,11 @@ public class MediumStrategy {
 	        drive(shelter);
 	    } else if (nearestBonus != -1) {
 	        drive(world.getBonuses()[nearestBonus]);
-	        return;
+	    } else if (!isFrontToWall() && Math.abs(self.getAngleTo(enemy)) < PI/6) {
+    		driveForward();
+	    } else {
+	        drive(world.getWidth() / 2, world.getHeight() / 2);
 	    }
-		driveForward();
 	}
 
 	private Tank getCloserEnemy(Point point) {
@@ -509,7 +511,10 @@ public class MediumStrategy {
 		if (alive.size() <= 4) {
 			return true;
 		}
-		if (getTargetingEnemies().size() > 1) {
+		Point nearestCorner = getNearestFreeCorner();
+		if (getTargetingEnemies().size() > 1 && 
+		    (nearestCorner == null || self.getDistanceTo(nearestCorner.x, nearestCorner.y) < self.getWidth()))
+		{
 			return true;
 		}
 		return false;
