@@ -1,6 +1,13 @@
 
 import model.*;
 
+enum State {
+	Init,
+	InCorner,
+	Walk,
+	OneOnOne,
+}
+
 public final class MyStrategy implements Strategy {
 	private State state;
 
