@@ -339,13 +339,17 @@ public class MediumStrategy {
 		return res;
 	}
 
-	// FIXME: wrong
 	private void avoidTargeting(List<Tank> targetingEnemies) {
-		if (shouldHideForwardFromTargeting(targetingEnemies)) {
-			driveForward();
-		} else {
-			driveBackward();
-		}
+	    Tank enemy = getNearestTank(targetingEnemies);
+	    Point shelter = findShelter(enemy);
+	    int nearestBonus = getNearestBonus();
+	    if (shelter != null) {
+	        drive(shelter);
+	    } else if (nearestBonus != -1) {
+	        drive(world.getBonuses()[nearestBonus]);
+	        return;
+	    }
+		driveForward();
 	}
 
 	private Tank getCloserEnemy(Point point) {
@@ -557,7 +561,7 @@ public class MediumStrategy {
 	private Point findShelter(Tank enemy) {
 		List<Tank> deads = getDeadTanks();
 		if (deads.isEmpty()) {
-			return getNearestFreeCorner();
+			return null;
 		}
 		Tank shelter = getNearestTank(deads);
 		double angle = enemy.getAngleTo(shelter);
@@ -595,6 +599,7 @@ public class MediumStrategy {
 			}
 			return;
 		}
+		
 		if (state == State.InCorner) {
 			Point corner = getNearestFreeCorner();
 			if (corner == null) {
@@ -608,6 +613,7 @@ public class MediumStrategy {
 			}
 			return;
 		}
+		
 		if (state == State.Walk) {
 			int bonusIndex = getImportantBonus();
 			List<Shell> dangerShells = getDangerShells();
@@ -616,15 +622,19 @@ public class MediumStrategy {
 			Point nearestCorner = getNearestFreeCorner();
 			if (!dangerShells.isEmpty()) {
 				avoidDanger(dangerShells);
-			// } else if (!targetingEnemies.isEmpty()) {
-			// avoidTargeting(self, world, move, targetingEnemies);
+			} else if (!targetingEnemies.isEmpty()) {
+			    avoidTargeting(targetingEnemies);
 			} else if (bonusIndex != -1) {
 				Bonus bonus = world.getBonuses()[bonusIndex];
 				drive(bonus);
 			} else if (enemies.size() < 3 && !getDeadTanks().isEmpty()) {
-			    // FIXME: sort targeting enemies
-			    Tank enemy = !targetingEnemies.isEmpty() ? targetingEnemies.get(0) : enemies.get(0);
-			    drive(findShelter(enemy));
+			    Tank enemy = !targetingEnemies.isEmpty() ? getNearestTank(targetingEnemies) : getNearestTank(enemies);
+			    Point shelter = findShelter(enemy);
+			    if (shelter != null) {
+    			    drive(shelter);
+			    } else {
+			        drive(nearestCorner);
+			    }
 			} else if (nearestCorner != null) {
 				drive(nearestCorner);
 			} else {
@@ -635,10 +645,13 @@ public class MediumStrategy {
 			}
 			return;
 		}
+		
 		if (state == State.OneOnOne) {
 			Tank enemy = getAliveEnemies().get(0);
 			List<Shell> dangerShells = getDangerShells();
 			int bonusIndex = getImportantBonus();
+			Point shelter = findShelter(enemy);
+			
 			if (!dangerShells.isEmpty()) {
 				avoidDanger(dangerShells);
 			} else if (bonusIndex != -1) {
@@ -646,8 +659,10 @@ public class MediumStrategy {
 				drive(bonus);
 			} else if (enemy.getCrewHealth() < self.getCrewHealth()) {
 				drive(enemy);
+			} else if (shelter != null) {
+				drive(shelter);
 			} else {
-				drive(findShelter(enemy));
+			    drive(getNearestFreeCorner());
 			}
 			return;
 		}
