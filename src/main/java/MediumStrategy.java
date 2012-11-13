@@ -436,8 +436,8 @@ public class MediumStrategy {
 		return res;
 	}
 	
-	private double[] getSortedAngles(Unit obstacle) {
-		Rectangle rect = getCoordinates(obstacle);
+	private double[] getSortedAngles(Unit unit) {
+		Rectangle rect = getCoordinates(unit);
 		double a1 = self.getAngleTo(rect.Points[0].x, rect.Points[0].y);
 		double a2 = self.getAngleTo(rect.Points[1].x, rect.Points[1].y);
 		double a3 = self.getAngleTo(rect.Points[2].x, rect.Points[2].y);
@@ -446,6 +446,17 @@ public class MediumStrategy {
 		Arrays.sort(angles);
 		return angles;
 	}
+	
+	private double[] getSortedTurretAngles(Unit unit) {
+		Rectangle rect = getCoordinates(unit);
+		double a1 = self.getTurretAngleTo(rect.Points[0].x, rect.Points[0].y);
+		double a2 = self.getTurretAngleTo(rect.Points[1].x, rect.Points[1].y);
+		double a3 = self.getTurretAngleTo(rect.Points[2].x, rect.Points[2].y);
+		double a4 = self.getTurretAngleTo(rect.Points[3].x, rect.Points[3].y);
+		double[] angles = new double[] {a1, a2, a3, a4};
+		Arrays.sort(angles);
+		return angles;
+	}
 
 	private boolean isObstacle(Tank enemy, Unit obstacle) {
 		if (self.getDistanceTo(enemy) < self.getDistanceTo(obstacle)) {
@@ -500,6 +511,7 @@ public class MediumStrategy {
 		return false;
 	}
 	
+	// FIXME: must observe enemy's movement
 	private int selectTurretMove(Tank enemy) {
 		double angle = self.getTurretAngleTo(enemy);
 		if (angle > MIN_SHOOT_ANGLE) {
@@ -517,7 +529,6 @@ public class MediumStrategy {
 	        move.setTurretTurn(turretMove);
 	    }
 	}
-
 
 	private void tryShoot(Tank enemy) {
 	    int turretMove = selectTurretMove(enemy);
