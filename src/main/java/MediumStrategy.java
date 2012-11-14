@@ -73,7 +73,6 @@ class EnemiesComparator implements Comparator<Tank> {
 }
 public class MediumStrategy {
 	private static final double MIN_SHOOT_ANGLE = PI / 180;
-	private static final double MAX_SHELL_ANGLE = PI / 6;
 	private static final double MIN_DRIVE_ANGLE = PI / 6;
 	private static final double MIN_HEALTH = 0.45;
 	private static final double STABLE_HEALTH = 0.6;
@@ -250,39 +249,6 @@ public class MediumStrategy {
 		quickDrive(p.x, p.y);
 	}
 
-	// TODO
-	// private ArrayList<Tank> getShootingEnemies(Tank self, World world) {
-	// ArrayList<Tank> res = new ArrayList<Tank>();
-	// for (Tank tank: world.getTanks()) {
-	// if ((tank.isTeammate() && tang.getId() != self.getId()) || !isAlive(tank)) {
-	// continue;
-	// }
-	// if (Math.abs(tank.getTurretAngleTo(self)) < MIN_SHOOT_ANGLE &&
-	// tank.getRemainingReloadingTime() < 10) {
-	// res.add(tank);
-	// }
-	// }
-	// return res;
-	// }
-
-	private boolean shouldHideForwardFromTargeting(List<Tank> enemies) {
-		if (self.getY() < 2 * self.getHeight() && Math.abs(self.getAngle() - PI / 2) < PI / 6) {
-			return true;
-		}
-		if (self.getY() > world.getHeight() - 2 * self.getHeight() && Math.abs(-PI / 2 - self.getAngle()) < PI / 6) {
-			return false;
-		}
-		int directShells = 0;
-		for (Tank tank : enemies) {
-			double angle = tank.getTurretAngleTo(self);
-			// System.out.println("angle = " + PI / angle + "; dist = " + shell.getDistanceTo(self));
-			if (angle > 0) {
-				++directShells;
-			}
-		}
-		return directShells >= enemies.size() - directShells;
-	}
-	
 	private boolean isRearToWall() {
 		double x = self.getX() - self.getHeight() * Math.cos(self.getAngle());
 		double y = self.getY() - self.getHeight() * Math.sin(self.getAngle());
@@ -305,6 +271,16 @@ public class MediumStrategy {
 			}
 		}
 		return res;
+	}
+	
+	Shell getNearestShell(List<Shell> shells) {
+	    Shell res = shells.get(0);
+	    for (Shell shell: shells) {
+	        if (self.getDistanceTo(shell) < self.getDistanceTo(res)) {
+	            res = shell;
+	        }
+	    }
+	    return res;
 	}    
 	private void avoidDanger(List<Shell> dangerShells) {
 		if (isRearToWall()) {
@@ -312,7 +288,7 @@ public class MediumStrategy {
 		} else if (isFrontToWall()) {
 			driveBackward();
 		} else {
-			Shell shell = dangerShells.get(0); // FIXME
+			Shell shell = getNearestShell(dangerShells);
 			double angle = shell.getAngleTo(self);
 			double dist = shell.getDistanceTo(self);
 			double dist1 = dist * Math.cos(angle);
@@ -347,7 +323,7 @@ public class MediumStrategy {
 	        drive(shelter);
 	    } else if (nearestBonus != -1) {
 	        drive(world.getBonuses()[nearestBonus]);
-	    } else if (!isFrontToWall() && Math.abs(self.getAngleTo(enemy)) < PI/6) {
+	    } else if (!isFrontToWall() && Math.abs(self.getAngleTo(enemy)) > PI/6) {
     		driveForward();
 	    } else {
 	        drive(world.getWidth() / 2, world.getHeight() / 2);
