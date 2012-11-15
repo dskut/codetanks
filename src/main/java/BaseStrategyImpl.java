@@ -425,7 +425,16 @@ public class BaseStrategyImpl {
 		}
 		return null;
 	}
-
+	
+	protected Tank getCloserTeammate(Point point) {
+		double selfDist = self.getDistanceTo(point.x, point.y);
+		for (Tank tank : getAliveTeammates()) {
+			if (tank.getDistanceTo(point.x, point.y) < selfDist) {
+				return tank;
+			}
+		}
+		return null;
+	}
 	protected Point[] getCorners() {
 		return new Point[] { new Point(XMIN, YMIN),
 							 new Point(XMIN, world.getHeight() - YMIN),
@@ -443,6 +452,9 @@ public class BaseStrategyImpl {
 		Point[] corners = getCorners();
 		Arrays.sort(corners, new TankDistComparator(self));
 		for (Point corner : corners) {
+		    if (getCloserTeammate(corner) != null) {
+		        continue;
+		    }
 			Tank tank = getCloserEnemy(corner);
 			if (tank == null || self.getDistanceTo(corner.x, corner.y) - tank.getDistanceTo(corner.x, corner.y) < 100) {
 				return corner;
@@ -504,4 +516,41 @@ public class BaseStrategyImpl {
 		double y = shelter.getY() + SHELTER_DIST * Math.sin(angle);
 		return new Point(x, y);
 	}
+	
+	protected void avoidDanger(List<Shell> dangerShells) {
+		if (isRearToWall()) {
+			driveForward();
+		} else if (isFrontToWall()) {
+			driveBackward();
+		} else {
+			Shell shell = getNearestShell(dangerShells);
+			double angle = shell.getAngleTo(self);
+			double dist = shell.getDistanceTo(self);
+			double dist1 = dist * Math.cos(angle);
+			double shellAngle = shell.getAngle();
+			double xInter = shell.getX() + dist1 * Math.cos(shellAngle);
+			double yInter = shell.getY() + dist1 * Math.sin(shellAngle);
+			double myAngle = self.getAngleTo(xInter, yInter);
+			if (Math.abs(myAngle) > PI/2) {
+				driveForward();
+			} else {
+				driveBackward();
+			}
+		}
+	}
+
+	protected void avoidTargeting(List<Tank> targetingEnemies) {
+	    Tank enemy = getNearestTank(targetingEnemies);
+	    Point shelter = findShelter(enemy);
+	    int nearestBonus = getNearestBonus();
+	    if (shelter != null) {
+	        drive(shelter);
+	    } else if (nearestBonus != -1) {
+	        drive(world.getBonuses()[nearestBonus]);
+	    } else if (!isFrontToWall() && Math.abs(self.getAngleTo(enemy)) > PI/6) {
+    		driveForward();
+	    } else {
+	        drive(world.getWidth() / 2, world.getHeight() / 2);
+	    }
+	}
 }

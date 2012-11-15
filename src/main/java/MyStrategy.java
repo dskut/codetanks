@@ -7,6 +7,7 @@ enum State {
 	InCorner,
 	Walk,
 	OneOnOne,
+	TwoOnOne,
 }
 
 public final class MyStrategy implements Strategy {
@@ -18,9 +19,16 @@ public final class MyStrategy implements Strategy {
 	
 	@Override
 	public void move(Tank self, World world, Move move) {
-	    SingleStrategyImpl strategy = new SingleStrategyImpl(self, world, move, state);
-	    strategy.run();
-	    state = strategy.getState();
+	    int teamSize = 6 / world.getPlayers().length;
+	    if (teamSize == 1) {
+    	    SingleStrategyImpl strategy = new SingleStrategyImpl(self, world, move, state);
+    	    strategy.run();
+    	    state = strategy.getState();
+	    } else if (teamSize == 2) {
+    	    DoubleStrategyImpl strategy = new DoubleStrategyImpl(self, world, move, state);
+    	    strategy.run();
+    	    state = strategy.getState();
+	    }
 	}
 
 	@Override

@@ -1,15 +1,14 @@
 
-import java.util.*;
-import static java.lang.StrictMath.PI;
 import model.*;
+import java.util.*;
 
 
-public class SingleStrategyImpl extends BaseStrategyImpl {
-    
-    public SingleStrategyImpl(Tank self, World world, Move move, State state) {
+public class DoubleStrategyImpl extends BaseStrategyImpl {
+
+    public DoubleStrategyImpl(Tank self, World world, Move move, State state) {
         super(self, world, move, state);
     }
-
+    
 	private boolean shouldLeaveCorner() {
 		if (self.getCrewHealth() < self.getCrewMaxHealth() * 0.66) {
 			return true;
@@ -29,7 +28,7 @@ public class SingleStrategyImpl extends BaseStrategyImpl {
 		}
 		return false;
 	}
-	
+    
 	private void initMove() {
 	    driveBackward();
 		double x = self.getX();
@@ -40,7 +39,7 @@ public class SingleStrategyImpl extends BaseStrategyImpl {
 			state = State.ToCorner;
 		}
 	}
-	
+		
 	private void toCornerMove() {
 		Point corner = getNearestFreeCorner();
 		Point dest = corner != null ? corner : getNearestWall();
@@ -66,7 +65,7 @@ public class SingleStrategyImpl extends BaseStrategyImpl {
 		    }
 		}
 	}
-	
+
 	private void walkMove() {
 		int bonusIndex = getImportantBonus();
 		List<Shell> dangerShells = getDangerShells();
@@ -118,6 +117,11 @@ public class SingleStrategyImpl extends BaseStrategyImpl {
 		    drive(getNearestFreeCorner());
 		}	}
 	
+	// FIXME
+	private void twoOnOneMove() {
+	    oneOnOneMove();
+	}
+    
 	private void selectDriveMove() {
 	    switch (state) {
 	    case Init: initMove(); break;
@@ -125,9 +129,10 @@ public class SingleStrategyImpl extends BaseStrategyImpl {
 	    case InCorner: inCornerMove(); break;
 	    case Walk: walkMove(); break;
 	    case OneOnOne: oneOnOneMove(); break;
+	    case TwoOnOne: twoOnOneMove(); break;
 	    }
 	}
-	
+
 	private void selectShootMove() {
 		List<Tank> enemies = getAliveEnemies();
 		List<Tank> openEnemies = selectOpenEnemies(enemies);
@@ -152,4 +157,5 @@ public class SingleStrategyImpl extends BaseStrategyImpl {
     public State getState() {
         return state;
     }
+
 }
