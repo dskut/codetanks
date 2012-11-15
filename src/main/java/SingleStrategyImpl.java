@@ -1,6 +1,5 @@
 
 import java.util.*;
-import static java.lang.StrictMath.PI;
 import model.*;
 
 
@@ -42,9 +41,14 @@ public class SingleStrategyImpl extends BaseStrategyImpl {
 	}
 	
 	private void toCornerMove() {
+		List<Shell> dangerShells = getDangerShells();
 		Point corner = getNearestFreeCorner();
 		Point dest = corner != null ? corner : getNearestWall();
-		quickDrive(dest);
+		if (!dangerShells.isEmpty()) {
+			avoidDanger(dangerShells);
+		} else {
+    		quickDrive(dest);
+		}
 		
 		if (self.getDistanceTo(dest.x, dest.y) < self.getWidth() / 2) {
 		    state = State.InCorner;
@@ -109,8 +113,7 @@ public class SingleStrategyImpl extends BaseStrategyImpl {
 		} else if (bonusIndex != -1) {
 			Bonus bonus = world.getBonuses()[bonusIndex];
 			drive(bonus);
-		} else if (enemy.getCrewHealth() < self.getCrewHealth() || 
-		        (enemy.getCrewHealth() == self.getCrewHealth() && enemy.getHullDurability() < self.getHullDurability())) {
+		} else if (isStronger(self, enemy)) {
 			drive(enemy);
 		} else if (shelter != null) {
 			drive(shelter);

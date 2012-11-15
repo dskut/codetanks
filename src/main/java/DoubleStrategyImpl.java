@@ -1,6 +1,7 @@
 
 import model.*;
 import java.util.*;
+import static java.lang.StrictMath.PI;
 
 
 public class DoubleStrategyImpl extends BaseStrategyImpl {
@@ -28,6 +29,31 @@ public class DoubleStrategyImpl extends BaseStrategyImpl {
 		}
 		return false;
 	}
+	
+	private Point getAttackPoint(Tank enemy, List<Tank> teammates) {
+	    double angle = enemy.getAngle();
+	    double x = enemy.getX();
+	    double y = enemy.getY();
+	    int selfIndex = self.getTeammateIndex();
+	    if (teammates.size() == 1 && selfIndex == 1) {
+	        angle += PI;
+	    } else if (teammates.size() == 2) {
+	        if (selfIndex == 1) {
+	            angle += PI;
+	        } else if (selfIndex == 2) {
+	            angle += PI/2;
+	        }
+	    }
+	    double attackDist = 3 * enemy.getHeight();
+	    double xr = x - attackDist * Math.cos(angle);
+	    double yr = y - attackDist * Math.sin(angle);
+	    while (!isInBoundsX(xr) || !isInBoundsY(yr)) {
+	        angle += PI / 2;
+    	    xr = x - attackDist * Math.cos(angle);
+    	    yr = y - attackDist * Math.sin(angle);
+	    }
+	    return new Point(xr, yr);
+	}
     
 	private void initMove() {
 	    driveBackward();
@@ -41,9 +67,14 @@ public class DoubleStrategyImpl extends BaseStrategyImpl {
 	}
 		
 	private void toCornerMove() {
+		List<Shell> dangerShells = getDangerShells();
 		Point corner = getNearestFreeCorner();
 		Point dest = corner != null ? corner : getNearestWall();
-		quickDrive(dest);
+		if (!dangerShells.isEmpty()) {
+			avoidDanger(dangerShells);
+		} else {
+    		quickDrive(dest);
+		}
 		
 		if (self.getDistanceTo(dest.x, dest.y) < self.getWidth() / 2) {
 		    state = State.InCorner;
@@ -93,8 +124,13 @@ public class DoubleStrategyImpl extends BaseStrategyImpl {
 			drive(getNearestWall());
 		}
 		
+	    int aliveTeammates = getAliveTeammates().size();
 		if (getAliveEnemies().size() == 1) {
-			state = State.OneOnOne;
+		    if (aliveTeammates == 1) {
+		        state = State.TwoOnOne;
+		    } else if (aliveTeammates == 0) {
+    			state = State.OneOnOne;
+		    }
 		}	}
 	
 	private void oneOnOneMove() {
@@ -119,9 +155,23 @@ public class DoubleStrategyImpl extends BaseStrategyImpl {
 	
 	// FIXME
 	private void twoOnOneMove() {
-	    oneOnOneMove();
-	}
-    
+		Tank enemy = getAliveEnemies().get(0);
+		List<Shell> dangerShells = getDangerShells();
+		int bonusIndex = getImportantBonus();
+		Point shelter = findShelter(enemy);
+		
+		if (!dangerShells.isEmpty()) {
+		    avoidDanger(dangerShells);
+		} else if (bonusIndex != -1) {
+			Bonus bonus = world.getBonuses()[bonusIndex];
+			drive(bonus);
+		} else if (isStronger(enemy, self) && shelter != null) {
+		    drive(shelter);
+		} else {
+		    Point attackPoint = getAttackPoint(enemy, getStrongerTeammates(enemy));
+		    drive(attackPoint);
+		}
+	}    
 	private void selectDriveMove() {
 	    switch (state) {
 	    case Init: initMove(); break;

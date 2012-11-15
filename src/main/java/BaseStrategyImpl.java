@@ -1,6 +1,7 @@
 
 import model.*;
 import java.util.*;
+
 import static java.lang.StrictMath.PI;
 
 class Point {
@@ -139,7 +140,14 @@ public class BaseStrategyImpl {
 	protected boolean isInRange(double a, double b, double x) {
 		return a <= x && x <= b;
 	}
+
+	protected boolean isInBoundsX(double x) {
+	    return isInRange(0, world.getWidth(), x);
+	}
 	
+	protected boolean isInBoundsY(double y) {
+	    return isInRange(0, world.getHeight(), y);
+	}
 	
 	protected int getNearestBonus() {
 		int res = -1;
@@ -338,7 +346,7 @@ public class BaseStrategyImpl {
 		}
 		return res;
 	}
-
+	
 	protected List<Tank> getAliveTeammates() {
 		List<Tank> res = new ArrayList<Tank>();
 		for (Tank tank : getAliveTanks()) {
@@ -347,6 +355,12 @@ public class BaseStrategyImpl {
 			}
 		}
 		return res;
+	}
+
+	protected List<Tank> getAliveTeam() {
+	    List<Tank> team = getAliveTeammates();
+	    team.add(self);
+	    return team;
 	}
 
 	protected List<Unit> getObstacles() {
@@ -552,5 +566,24 @@ public class BaseStrategyImpl {
 	    } else {
 	        drive(world.getWidth() / 2, world.getHeight() / 2);
 	    }
-	}
+	}    protected boolean isStronger(Tank first, Tank second) {
+        if (first.getCrewHealth() != second.getCrewHealth()) {
+            return first.getCrewHealth() > second.getCrewHealth();
+        }
+        if (first.getHullDurability() != second.getHullDurability()) {
+            return first.getHullDurability() > second.getHullDurability();
+        }
+        return first.getRemainingReloadingTime() < second.getRemainingReloadingTime();
+    }
+    
+    protected List<Tank> getStrongerTeammates(Tank enemy) {
+        List<Tank> teammates = getAliveTeammates();
+        List<Tank> res = new ArrayList<Tank>();
+        for (Tank teammate: teammates) {
+            if (isStronger(teammate, enemy)) {
+                res.add(teammate);
+            }
+        }
+        return res;
+    }
 }
