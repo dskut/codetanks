@@ -82,6 +82,8 @@ public class DoubleStrategyImpl extends BaseStrategyImpl {
 		    state = State.OneOnOne;
     	} else if (self.getDistanceTo(dest.x, dest.y) < self.getWidth() / 2) {
 		    state = State.InCorner;
+		} else if (existUnit(dest)) {
+		    state = State.InCorner; 
 		}
 	}
 	

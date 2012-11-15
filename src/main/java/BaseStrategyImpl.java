@@ -154,10 +154,11 @@ public class BaseStrategyImpl {
 		int res = -1;
 		double minDist = 1e9;
 		Bonus[] bonuses = world.getBonuses();
+		List<Tank> enemies = getStrongerEnemies();
 		for (int i = 0; i < bonuses.length; ++i) {
 			Bonus bonus = bonuses[i];
 			double dist = self.getDistanceTo(bonus);
-			if (dist < minDist) {
+			if (dist < minDist && isCloser(self, enemies, bonus)) {
 				minDist = dist;
 				res = i;
 			}
@@ -169,13 +170,14 @@ public class BaseStrategyImpl {
 		int res = -1;
 		double minDist = 1e9;
 		Bonus[] bonuses = world.getBonuses();
+		List<Tank> enemies = getStrongerEnemies();
 		for (int i = 0; i < bonuses.length; ++i) {
 			Bonus bonus = bonuses[i];
 			if (bonus.getType() != type) {
 				continue;
 			}
 			double dist = self.getDistanceTo(bonus);
-			if (dist < minDist) {
+			if (dist < minDist && isCloser(self, enemies, bonus)) {
 				minDist = dist;
 				res = i;
 			}
@@ -382,6 +384,26 @@ public class BaseStrategyImpl {
 	    List<Tank> team = getAliveTeammates();
 	    team.add(self);
 	    return team;
+	}
+	
+	protected List<Tank> getStrongerEnemies() {
+	    List<Tank> enemies = getAliveEnemies();
+	    List<Tank> res = new ArrayList<Tank>();
+	    for (Tank enemy: enemies) {
+	        if (isStronger(enemy, self)) {
+	            res.add(enemy);
+	        }
+	    }
+	    return res;
+	}
+	
+	protected boolean isCloser(Tank tank, List<Tank> others, Unit unit) {
+	    for (Tank other: others) {
+	        if (other.getDistanceTo(unit) < tank.getDistanceTo(unit)) {
+	            return false;
+	        }
+	    }
+	    return true;
 	}
 
 	protected List<Unit> getObstacles() {
@@ -625,5 +647,16 @@ public class BaseStrategyImpl {
     
     protected boolean isTwoOnOne() {
         return getAliveEnemies().size() == 1 && getAliveTeammates().size() == 1;
+    }
+    
+    protected boolean existUnit(Point point) {
+        List<Unit> units = new ArrayList<Unit>();
+        units.addAll(Arrays.asList(world.getTanks()));
+        for (Unit unit: units) {
+            if (unit.getDistanceTo(point.x, point.y) < unit.getWidth()) {
+                return true;
+            }
+        }
+        return false;
     }
 }
