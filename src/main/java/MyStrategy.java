@@ -3,6 +3,7 @@ import model.*;
 
 enum State {
 	Init,
+	ToCorner,
 	InCorner,
 	Walk,
 	OneOnOne,
@@ -17,13 +18,13 @@ public final class MyStrategy implements Strategy {
 	
 	@Override
 	public void move(Tank self, World world, Move move) {
-	    MediumStrategy strategy = new MediumStrategy(self, world, move, state);
+	    SingleStrategyImpl strategy = new SingleStrategyImpl(self, world, move, state);
 	    strategy.run();
 	    state = strategy.getState();
 	}
 
 	@Override
 	public TankType selectTank(int tankIndex, int teamSize) {
-	    return MediumStrategy.getTankType();
+	    return SingleStrategyImpl.getTankType();
 	}
 }

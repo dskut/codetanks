@@ -1,7 +1,7 @@
 
+import model.*;
 import java.util.*;
 import static java.lang.StrictMath.PI;
-import model.*;
 
 class Point {
 	public double x;
@@ -22,7 +22,7 @@ class Rectangle {
 }
 
 class TankDistComparator implements Comparator<Point> {
-	private Tank tank;
+	protected Tank tank;
 
 	public TankDistComparator(Tank tank) {
 		this.tank = tank;
@@ -70,47 +70,47 @@ class EnemiesComparator implements Comparator<Tank> {
 		}
 		return (int) Math.ceil(secondDist - firstDist);
 	}
-}
-public class MediumStrategy {
-	private static final double MIN_SHOOT_ANGLE = PI / 180;
-	private static final double MIN_DRIVE_ANGLE = PI / 6;
-	private static final double MIN_HEALTH = 0.45;
-	private static final double STABLE_HEALTH = 0.6;
-	private static final double MIN_DURABILITY = 0.45;
-	private static final double STABLE_DURABILITY = 0.6;
-	private static final double MAX_PREMIUM_SHOOT_DIST = 500;
-	private static final double XMIN = 20;
-	private static final double YMIN = 20;
-	private static final double MAX_BONUS_DIST = 600;
-	private static final double SHELTER_DIST = 200;
-	
-    private Tank self;
-    private World world;
-    private Move move;
-    private State state;
+}
+public class BaseStrategyImpl {
+	protected static final double MIN_SHOOT_ANGLE = PI / 180;
+	protected static final double MIN_DRIVE_ANGLE = PI / 6;
+	protected static final double MIN_HEALTH = 0.45;
+	protected static final double STABLE_HEALTH = 0.6;
+	protected static final double MIN_DURABILITY = 0.45;
+	protected static final double STABLE_DURABILITY = 0.6;
+	protected static final double MAX_PREMIUM_SHOOT_DIST = 500;
+	protected static final double XMIN = 20;
+	protected static final double YMIN = 20;
+	protected static final double MAX_BONUS_DIST = 600;
+	protected static final double SHELTER_DIST = 200;
+
+    protected Tank self;
+    protected World world;
+    protected Move move;
+    protected State state;
     
-    public MediumStrategy(Tank self, World world, Move move, State state) {
+    public BaseStrategyImpl(Tank self, World world, Move move, State state) {
         this.self = self;
         this.world = world;
         this.move = move;
         this.state = state;
     }
     
-    	private void driveForward() {
+	protected void driveForward() {
 		move.setLeftTrackPower(1);
 		move.setRightTrackPower(1);
 	}
 
-	private void driveBackward() {
+	protected void driveBackward() {
 		move.setLeftTrackPower(-1);
 		move.setRightTrackPower(-1);
 	}
 
-	private boolean isAlive(Tank tank) {
+	protected boolean isAlive(Tank tank) {
 		return tank.getCrewHealth() > 0 && tank.getHullDurability() > 0;
 	}
 	
-	private Rectangle getCoordinates(Unit unit) {
+	protected Rectangle getCoordinates(Unit unit) {
 		double xc = unit.getX();
 		double yc = unit.getY();
 		double a = unit.getAngle();
@@ -136,11 +136,12 @@ public class MediumStrategy {
 		return new Rectangle(p1, p2, p3, p4);
 	}
 	
-	private boolean isInRange(double a, double b, double x) {
+	protected boolean isInRange(double a, double b, double x) {
 		return a <= x && x <= b;
 	}
-
-	private int getNearestBonus() {
+	
+	
+	protected int getNearestBonus() {
 		int res = -1;
 		double minDist = 1e9;
 		Bonus[] bonuses = world.getBonuses();
@@ -155,7 +156,7 @@ public class MediumStrategy {
 		return res;
 	}
 
-	private int getNearestBonus(BonusType type) {
+	protected int getNearestBonus(BonusType type) {
 		int res = -1;
 		double minDist = 1e9;
 		Bonus[] bonuses = world.getBonuses();
@@ -173,7 +174,7 @@ public class MediumStrategy {
 		return res;
 	}
 
-	private int getImportantBonus() {
+	protected int getImportantBonus() {
 		double relativeHealth = (double) self.getCrewHealth()	/ self.getCrewMaxHealth();
 		if (relativeHealth < MIN_HEALTH) {
 			int nearestMedicine = getNearestBonus(BonusType.MEDIKIT);
@@ -201,7 +202,7 @@ public class MediumStrategy {
 		return -1;
 	}
 
-	private void drive(double x, double y, double frontPower, double rearPower) {
+	protected void drive(double x, double y, double frontPower, double rearPower) {
 		if (self.getDistanceTo(x, y) < self.getHeight() / 2) {
 			return;
 		}
@@ -229,44 +230,43 @@ public class MediumStrategy {
 		}
 	}
 	
-	private void drive(double x, double y) {
+	protected void drive(double x, double y) {
 		drive(x, y, 0.75, -1);
 	}
 	
-	private void drive(Point point) {
+	protected void drive(Point point) {
 		drive(point.x, point.y);
 	}
 	
-	private void drive(Unit unit) {
+	protected void drive(Unit unit) {
 		drive(unit.getX(), unit.getY());
 	}
 	
-	private void quickDrive(double x, double y) {
+	protected void quickDrive(double x, double y) {
 		drive(x, y, 1, -0.75);
 	}
 	
-	private void quickDrive(Point p) {
+	protected void quickDrive(Point p) {
 		quickDrive(p.x, p.y);
 	}
-
-	private boolean isRearToWall() {
+	protected boolean isRearToWall() {
 		double x = self.getX() - self.getHeight() * Math.cos(self.getAngle());
 		double y = self.getY() - self.getHeight() * Math.sin(self.getAngle());
 		return !isInRange(0, world.getWidth(), x) || !isInRange(0, world.getHeight(), y);
 	}
 	
-	private boolean isFrontToWall() {
+	protected boolean isFrontToWall() {
 		double x = self.getX() + self.getHeight() * Math.cos(self.getAngle());
 		double y = self.getY() + self.getHeight() * Math.sin(self.getAngle());
 		return !isInRange(0, world.getWidth(), x) || !isInRange(0, world.getHeight(), y);
 	}
 
-	private List<Shell> getDangerShells() {
+	protected List<Shell> getDangerShells() {
 		List<Shell> res = new ArrayList<Shell>();
 		for (Shell shell : world.getShells()) {
 			double angle = shell.getAngleTo(self);
 			double dist = shell.getDistanceTo(self);
-			if (Math.abs(angle) < PI/2 && dist*Math.sin(angle) < self.getHeight()) {
+			if (Math.abs(angle) < PI/2 && Math.abs(dist*Math.sin(angle)) < self.getHeight()) {
 				res.add(shell);
 			}
 		}
@@ -281,30 +281,9 @@ public class MediumStrategy {
 	        }
 	    }
 	    return res;
-	}    
-	private void avoidDanger(List<Shell> dangerShells) {
-		if (isRearToWall()) {
-			driveForward();
-		} else if (isFrontToWall()) {
-			driveBackward();
-		} else {
-			Shell shell = getNearestShell(dangerShells);
-			double angle = shell.getAngleTo(self);
-			double dist = shell.getDistanceTo(self);
-			double dist1 = dist * Math.cos(angle);
-			double shellAngle = shell.getAngle();
-			double xInter = shell.getX() + dist1 * Math.cos(shellAngle);
-			double yInter = shell.getY() + dist1 * Math.sin(shellAngle);
-			double myAngle = self.getAngleTo(xInter, yInter);
-			if (Math.abs(myAngle) > PI/2) {
-				driveForward();
-			} else {
-				driveBackward();
-			}
-		}
 	}
-
-	private List<Tank> getTargetingEnemies() {
+	
+	protected List<Tank> getTargetingEnemies() {
 		List<Tank> res = new ArrayList<Tank>();
 		for (Tank tank : getAliveEnemies()) {
 			double angle = tank.getTurretAngleTo(self);
@@ -313,49 +292,8 @@ public class MediumStrategy {
 			}
 		}
 		return res;
-	}
-
-	private void avoidTargeting(List<Tank> targetingEnemies) {
-	    Tank enemy = getNearestTank(targetingEnemies);
-	    Point shelter = findShelter(enemy);
-	    int nearestBonus = getNearestBonus();
-	    if (shelter != null) {
-	        drive(shelter);
-	    } else if (nearestBonus != -1) {
-	        drive(world.getBonuses()[nearestBonus]);
-	    } else if (!isFrontToWall() && Math.abs(self.getAngleTo(enemy)) > PI/6) {
-    		driveForward();
-	    } else {
-	        drive(world.getWidth() / 2, world.getHeight() / 2);
-	    }
-	}
-
-	private Tank getCloserEnemy(Point point) {
-		double selfDist = self.getDistanceTo(point.x, point.y);
-		for (Tank tank : getAliveEnemies()) {
-			if (tank.getDistanceTo(point.x, point.y) < selfDist) {
-				return tank;
-			}
-		}
-		return null;
-	}
-
-	private Point getNearestFreeCorner() {
-		Point[] corners = new Point[] { new Point(XMIN, YMIN),
-										new Point(XMIN, world.getHeight() - YMIN),
-										new Point(world.getWidth() - XMIN, YMIN),
-										new Point(world.getWidth() - XMIN, world.getHeight() - YMIN) };
-		Arrays.sort(corners, new TankDistComparator(self));
-		for (Point corner : corners) {
-			Tank tank = getCloserEnemy(corner);
-			if (tank == null || self.getDistanceTo(corner.x, corner.y) - tank.getDistanceTo(corner.x, corner.y) < 100) {
-				return corner;
-			}
-		}
-		return null;
-	}
-
-	private Point getNearestWall() {
+	}
+	protected Point getNearestWall() {
 		List<Point> walls = new ArrayList<Point>();
 		walls.add(new Point(XMIN, world.getHeight() / 2));
 		walls.add(new Point(world.getWidth() - XMIN, world.getHeight() / 2));
@@ -371,7 +309,7 @@ public class MediumStrategy {
 		return walls.get(0);
 	}
 
-	private List<Tank> getAliveTanks() {
+	protected List<Tank> getAliveTanks() {
 		List<Tank> res = new ArrayList<Tank>();
 		for (Tank tank : world.getTanks()) {
 			if (isAlive(tank)) {
@@ -381,7 +319,7 @@ public class MediumStrategy {
 		return res;
 	}
 
-	private List<Tank> getDeadTanks() {
+	protected List<Tank> getDeadTanks() {
 		List<Tank> res = new ArrayList<Tank>();
 		for (Tank tank : world.getTanks()) {
 			if (!isAlive(tank)) {
@@ -391,7 +329,7 @@ public class MediumStrategy {
 		return res;
 	}
 
-	private List<Tank> getAliveEnemies() {
+	protected List<Tank> getAliveEnemies() {
 		List<Tank> res = new ArrayList<Tank>();
 		for (Tank tank : getAliveTanks()) {
 			if (!tank.isTeammate()) {
@@ -401,7 +339,7 @@ public class MediumStrategy {
 		return res;
 	}
 
-	private List<Tank> getAliveTeammates() {
+	protected List<Tank> getAliveTeammates() {
 		List<Tank> res = new ArrayList<Tank>();
 		for (Tank tank : getAliveTanks()) {
 			if (tank.isTeammate() && tank.getId() != self.getId()) {
@@ -411,36 +349,16 @@ public class MediumStrategy {
 		return res;
 	}
 
-	private List<Unit> getObstacles() {
+	protected List<Unit> getObstacles() {
 		List<Unit> res = new ArrayList<Unit>();
 		res.addAll(getDeadTanks());
 		res.addAll(Arrays.asList(world.getBonuses()));
 		return res;
 	}
 	
-	private double[] getSortedAngles(Unit unit) {
-		Rectangle rect = getCoordinates(unit);
-		double a1 = self.getAngleTo(rect.Points[0].x, rect.Points[0].y);
-		double a2 = self.getAngleTo(rect.Points[1].x, rect.Points[1].y);
-		double a3 = self.getAngleTo(rect.Points[2].x, rect.Points[2].y);
-		double a4 = self.getAngleTo(rect.Points[3].x, rect.Points[3].y);
-		double[] angles = new double[] {a1, a2, a3, a4};
-		Arrays.sort(angles);
-		return angles;
-	}
 	
-	private double[] getSortedTurretAngles(Unit unit) {
-		Rectangle rect = getCoordinates(unit);
-		double a1 = self.getTurretAngleTo(rect.Points[0].x, rect.Points[0].y);
-		double a2 = self.getTurretAngleTo(rect.Points[1].x, rect.Points[1].y);
-		double a3 = self.getTurretAngleTo(rect.Points[2].x, rect.Points[2].y);
-		double a4 = self.getTurretAngleTo(rect.Points[3].x, rect.Points[3].y);
-		double[] angles = new double[] {a1, a2, a3, a4};
-		Arrays.sort(angles);
-		return angles;
-	}
 
-	private boolean isObstacle(Tank enemy, Unit obstacle) {
+	protected boolean isObstacle(Tank enemy, Unit obstacle) {
 		if (self.getDistanceTo(enemy) < self.getDistanceTo(obstacle)) {
 			return false;
 		}
@@ -455,7 +373,7 @@ public class MediumStrategy {
 		}
 	}
 
-	private boolean existObstacle(Tank enemy, List<Unit> obstacles) {
+	protected boolean existObstacle(Tank enemy, List<Unit> obstacles) {
 		for (Unit obstacle : obstacles) {
 			if (isObstacle(enemy, obstacle)) {
 				return true;
@@ -464,7 +382,7 @@ public class MediumStrategy {
 		return false;
 	}
 
-	private List<Tank> selectOpenEnemies(List<Tank> enemies) {
+	protected List<Tank> selectOpenEnemies(List<Tank> enemies) {
 		List<Tank> res = new ArrayList<Tank>();
 		List<Unit> obstacles = getObstacles();
 		obstacles.addAll(getAliveTeammates());
@@ -475,29 +393,65 @@ public class MediumStrategy {
 		}
 		return res;
 	}
-
-	private boolean shouldWalk() {
-		if (self.getCrewHealth() < self.getCrewMaxHealth() * 0.66) {
-			return true;
-		}
-		if (self.getHullDurability() < self.getHullMaxDurability() * 0.66) {
-			return true;
-		}
-		List<Tank> alive = getAliveTanks();
-		if (alive.size() <= 4) {
-			return true;
-		}
-		Point nearestCorner = getNearestFreeCorner();
-		if (getTargetingEnemies().size() > 1 && 
-		    (nearestCorner == null || self.getDistanceTo(nearestCorner.x, nearestCorner.y) < self.getWidth()))
-		{
-			return true;
-		}
-		return false;
+	
+	protected double[] getSortedAngles(Unit unit) {
+		Rectangle rect = getCoordinates(unit);
+		double a1 = self.getAngleTo(rect.Points[0].x, rect.Points[0].y);
+		double a2 = self.getAngleTo(rect.Points[1].x, rect.Points[1].y);
+		double a3 = self.getAngleTo(rect.Points[2].x, rect.Points[2].y);
+		double a4 = self.getAngleTo(rect.Points[3].x, rect.Points[3].y);
+		double[] angles = new double[] {a1, a2, a3, a4};
+		Arrays.sort(angles);
+		return angles;
 	}
 	
+	protected double[] getSortedTurretAngles(Unit unit) {
+		Rectangle rect = getCoordinates(unit);
+		double a1 = self.getTurretAngleTo(rect.Points[0].x, rect.Points[0].y);
+		double a2 = self.getTurretAngleTo(rect.Points[1].x, rect.Points[1].y);
+		double a3 = self.getTurretAngleTo(rect.Points[2].x, rect.Points[2].y);
+		double a4 = self.getTurretAngleTo(rect.Points[3].x, rect.Points[3].y);
+		double[] angles = new double[] {a1, a2, a3, a4};
+		Arrays.sort(angles);
+		return angles;
+	}
+	
+	protected Tank getCloserEnemy(Point point) {
+		double selfDist = self.getDistanceTo(point.x, point.y);
+		for (Tank tank : getAliveEnemies()) {
+			if (tank.getDistanceTo(point.x, point.y) < selfDist) {
+				return tank;
+			}
+		}
+		return null;
+	}
+
+	protected Point[] getCorners() {
+		return new Point[] { new Point(XMIN, YMIN),
+							 new Point(XMIN, world.getHeight() - YMIN),
+							 new Point(world.getWidth() - XMIN, YMIN),
+							 new Point(world.getWidth() - XMIN, world.getHeight() - YMIN) };
+	}
+	
+	protected Point getNearestCorner() {
+		Point[] corners = getCorners();
+		Arrays.sort(corners, new TankDistComparator(self));
+		return corners[0];
+	}
+	
+	protected Point getNearestFreeCorner() {
+		Point[] corners = getCorners();
+		Arrays.sort(corners, new TankDistComparator(self));
+		for (Point corner : corners) {
+			Tank tank = getCloserEnemy(corner);
+			if (tank == null || self.getDistanceTo(corner.x, corner.y) - tank.getDistanceTo(corner.x, corner.y) < 100) {
+				return corner;
+			}
+		}
+		return null;
+	}		
 	// FIXME: must observe enemy's movement
-	private int selectTurretMove(Tank enemy) {
+	protected int selectTurretMove(Tank enemy) {
 		double angle = self.getTurretAngleTo(enemy);
 		if (angle > MIN_SHOOT_ANGLE) {
 		    return 1;
@@ -508,14 +462,14 @@ public class MediumStrategy {
 		}
 	}
 		
-	private void turnTurretTo(Tank enemy) {
+	protected void turnTurretTo(Tank enemy) {
 	    int turretMove = selectTurretMove(enemy);
 	    if (turretMove != 0) {
 	        move.setTurretTurn(turretMove);
 	    }
 	}
 
-	private void tryShoot(Tank enemy) {
+	protected void tryShoot(Tank enemy) {
 	    int turretMove = selectTurretMove(enemy);
 		if (turretMove == 0) {
 			double dist = self.getDistanceTo(enemy);
@@ -529,7 +483,7 @@ public class MediumStrategy {
 		}
 	}
 	
-	private Tank getNearestTank(List<Tank> tanks) {
+	protected Tank getNearestTank(List<Tank> tanks) {
 		Tank res = tanks.get(0);
 		for (Tank tank: tanks) {
 			if (self.getDistanceTo(tank) < self.getDistanceTo(res)) {
@@ -539,7 +493,7 @@ public class MediumStrategy {
 		return res;
 	}
 	
-	private Point findShelter(Tank enemy) {
+	protected Point findShelter(Tank enemy) {
 		List<Tank> deads = getDeadTanks();
 		if (deads.isEmpty()) {
 			return null;
@@ -550,115 +504,4 @@ public class MediumStrategy {
 		double y = shelter.getY() + SHELTER_DIST * Math.sin(angle);
 		return new Point(x, y);
 	}
-
-
-	private void selectShootMove() {
-		List<Tank> enemies = getAliveEnemies();
-		if (enemies.isEmpty()) {
-			// something is wrong!
-			return;
-		}
-		List<Tank> openEnemies = selectOpenEnemies(enemies);
-		if (openEnemies.isEmpty()) {
-			Tank enemy = Collections.max(enemies, new EnemiesComparator(self));
-			turnTurretTo(enemy);
-			return;
-		}
-		Tank enemy = Collections.max(openEnemies, new EnemiesComparator(self));
-		tryShoot(enemy);
-	}
-	
-	private void selectDriveMove() {
-		if (state == State.Init) {
-			driveBackward();
-			double x = self.getX();
-			double y = self.getY();
-			if (x <= self.getWidth() || x >= world.getWidth() - self.getWidth() ||
-			    y <= self.getHeight() || y >= world.getHeight() - self.getHeight())
-			{
-				state = State.InCorner;
-			}
-			return;
-		}
-		
-		if (state == State.InCorner) {
-			Point corner = getNearestFreeCorner();
-			if (corner == null) {
-				Point wall = getNearestWall();
-				quickDrive(wall);
-			} else {
-				quickDrive(corner);
-			}
-			if (shouldWalk()) {
-				state = State.Walk;
-			}
-			return;
-		}
-		
-		if (state == State.Walk) {
-			int bonusIndex = getImportantBonus();
-			List<Shell> dangerShells = getDangerShells();
-			List<Tank> targetingEnemies = getTargetingEnemies();
-			List<Tank> enemies = getAliveEnemies();
-			Point nearestCorner = getNearestFreeCorner();
-			if (!dangerShells.isEmpty()) {
-				avoidDanger(dangerShells);
-			} else if (!targetingEnemies.isEmpty()) {
-			    avoidTargeting(targetingEnemies);
-			} else if (bonusIndex != -1) {
-				Bonus bonus = world.getBonuses()[bonusIndex];
-				drive(bonus);
-			} else if (enemies.size() < 3 && !getDeadTanks().isEmpty()) {
-			    Tank enemy = !targetingEnemies.isEmpty() ? getNearestTank(targetingEnemies) : getNearestTank(enemies);
-			    Point shelter = findShelter(enemy);
-			    if (shelter != null) {
-    			    drive(shelter);
-			    } else {
-			        drive(nearestCorner);
-			    }
-			} else if (nearestCorner != null) {
-				drive(nearestCorner);
-			} else {
-				drive(getNearestWall());
-			}
-			if (getAliveEnemies().size() == 1) {
-				state = State.OneOnOne;
-			}
-			return;
-		}
-		
-		if (state == State.OneOnOne) {
-			Tank enemy = getAliveEnemies().get(0);
-			List<Shell> dangerShells = getDangerShells();
-			int bonusIndex = getImportantBonus();
-			Point shelter = findShelter(enemy);
-			
-			if (!dangerShells.isEmpty()) {
-				avoidDanger(dangerShells);
-			} else if (bonusIndex != -1) {
-				Bonus bonus = world.getBonuses()[bonusIndex];
-				drive(bonus);
-			} else if (enemy.getCrewHealth() < self.getCrewHealth()) {
-				drive(enemy);
-			} else if (shelter != null) {
-				drive(shelter);
-			} else {
-			    drive(getNearestFreeCorner());
-			}
-			return;
-		}
-	}
-    
-    public static TankType getTankType() {
-        return TankType.MEDIUM;        
-    }
-    
-    public void run() {
-		selectShootMove();
-		selectDriveMove();
-    }
-
-    public State getState() {
-        return state;
-    }
 }
