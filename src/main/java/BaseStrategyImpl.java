@@ -1,5 +1,6 @@
 
 import model.*;
+
 import java.util.*;
 
 import static java.lang.StrictMath.PI;
@@ -107,7 +108,7 @@ public class BaseStrategyImpl {
 		move.setRightTrackPower(-1);
 	}
 
-	protected boolean isAlive(Tank tank) {
+	protected static boolean isAlive(Tank tank) {
 		return tank.getCrewHealth() > 0 && tank.getHullDurability() > 0;
 	}
 	
@@ -326,6 +327,16 @@ public class BaseStrategyImpl {
 		}
 		return res;
 	}
+	
+	protected static List<Tank> getAliveTanks(World world) {
+		List<Tank> res = new ArrayList<Tank>();
+		for (Tank tank : world.getTanks()) {
+			if (isAlive(tank)) {
+				res.add(tank);
+			}
+		}
+		return res;
+	}
 
 	protected List<Tank> getDeadTanks() {
 		List<Tank> res = new ArrayList<Tank>();
@@ -356,6 +367,16 @@ public class BaseStrategyImpl {
 		}
 		return res;
 	}
+	
+    public static int getAliveTeammates(Tank self, World world) {
+		List<Tank> res = new ArrayList<Tank>();
+		for (Tank tank : getAliveTanks(world)) {
+			if (tank.isTeammate() && tank.getId() != self.getId()) {
+				res.add(tank);
+			}
+		}
+		return res.size();
+    }
 
 	protected List<Tank> getAliveTeam() {
 	    List<Tank> team = getAliveTeammates();
@@ -475,7 +496,18 @@ public class BaseStrategyImpl {
 			}
 		}
 		return null;
-	}		
+	}
+		protected Point getNearestCornerWithoutTeammate() {
+		Point[] corners = getCorners();
+		Arrays.sort(corners, new TankDistComparator(self));
+		for (Point corner : corners) {
+		    if (getCloserTeammate(corner) == null) {
+		        return corner;
+		    }
+		}
+		return null;
+	}
+		
 	// FIXME: must observe enemy's movement
 	protected int selectTurretMove(Tank enemy) {
 		double angle = self.getTurretAngleTo(enemy);
@@ -585,5 +617,13 @@ public class BaseStrategyImpl {
             }
         }
         return res;
+    }
+    
+    protected boolean isOneOnOne() {
+        return getAliveEnemies().size() == 1 && getAliveTeammates().size() == 0;
+    }
+    
+    protected boolean isTwoOnOne() {
+        return getAliveEnemies().size() == 1 && getAliveTeammates().size() == 1;
     }
 }

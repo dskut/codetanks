@@ -68,7 +68,7 @@ public class DoubleStrategyImpl extends BaseStrategyImpl {
 		
 	private void toCornerMove() {
 		List<Shell> dangerShells = getDangerShells();
-		Point corner = getNearestFreeCorner();
+		Point corner = getNearestCornerWithoutTeammate();
 		Point dest = corner != null ? corner : getNearestWall();
 		if (!dangerShells.isEmpty()) {
 			avoidDanger(dangerShells);
@@ -76,7 +76,11 @@ public class DoubleStrategyImpl extends BaseStrategyImpl {
     		quickDrive(dest);
 		}
 		
-		if (self.getDistanceTo(dest.x, dest.y) < self.getWidth() / 2) {
+		if (isTwoOnOne()) {
+		    state = State.TwoOnOne;
+		} else if (isOneOnOne()) {
+		    state = State.OneOnOne;
+    	} else if (self.getDistanceTo(dest.x, dest.y) < self.getWidth() / 2) {
 		    state = State.InCorner;
 		}
 	}
@@ -87,7 +91,11 @@ public class DoubleStrategyImpl extends BaseStrategyImpl {
 			avoidDanger(dangerShells);
 		}
 		
-		if (shouldLeaveCorner()) {
+		if (isTwoOnOne()) {
+		    state = State.TwoOnOne;
+		} else if (isOneOnOne()) {
+		    state = State.OneOnOne;
+    	} else if (shouldLeaveCorner()) {
 		    state = State.Walk;
 		} else {
 		    Point corner = getNearestCorner();
@@ -124,14 +132,12 @@ public class DoubleStrategyImpl extends BaseStrategyImpl {
 			drive(getNearestWall());
 		}
 		
-	    int aliveTeammates = getAliveTeammates().size();
-		if (getAliveEnemies().size() == 1) {
-		    if (aliveTeammates == 1) {
-		        state = State.TwoOnOne;
-		    } else if (aliveTeammates == 0) {
-    			state = State.OneOnOne;
-		    }
-		}	}
+		if (isTwoOnOne()) {
+		    state = State.TwoOnOne;
+		} else if (isOneOnOne()) {
+		    state = State.OneOnOne;
+		}
+	}
 	
 	private void oneOnOneMove() {
 		Tank enemy = getAliveEnemies().get(0);
@@ -153,7 +159,6 @@ public class DoubleStrategyImpl extends BaseStrategyImpl {
 		    drive(getNearestFreeCorner());
 		}	}
 	
-	// FIXME
 	private void twoOnOneMove() {
 		Tank enemy = getAliveEnemies().get(0);
 		List<Shell> dangerShells = getDangerShells();
@@ -161,13 +166,17 @@ public class DoubleStrategyImpl extends BaseStrategyImpl {
 		Point shelter = findShelter(enemy);
 		
 		if (!dangerShells.isEmpty()) {
+		    //System.out.println("avoid danger");
 		    avoidDanger(dangerShells);
 		} else if (bonusIndex != -1) {
+		    //System.out.println("drive to bonus");
 			Bonus bonus = world.getBonuses()[bonusIndex];
 			drive(bonus);
 		} else if (isStronger(enemy, self) && shelter != null) {
+		    //System.out.println("drive to shelter");
 		    drive(shelter);
 		} else {
+		    //System.out.println("attack");
 		    Point attackPoint = getAttackPoint(enemy, getStrongerTeammates(enemy));
 		    drive(attackPoint);
 		}
@@ -200,6 +209,9 @@ public class DoubleStrategyImpl extends BaseStrategyImpl {
     }
     
     public void run() {
+        //System.out.println("tick: " + world.getTick() + 
+        //          "; teammate index: " + self.getTeammateIndex() + 
+        //        "; state: " + state);
 		selectShootMove();
 		selectDriveMove();
     }

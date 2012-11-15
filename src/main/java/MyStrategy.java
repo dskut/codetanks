@@ -2,12 +2,20 @@
 import model.*;
 
 enum State {
-	Init,
-	ToCorner,
-	InCorner,
-	Walk,
-	OneOnOne,
-	TwoOnOne,
+	Init("Init"),
+	ToCorner("ToCorner"),
+	InCorner("InCorner"),
+	Walk("Walk"),
+	OneOnOne("OneOnOne"),
+	TwoOnOne("TwoOneOne")
+	;
+	private final String text;
+	private State(final String text) {
+	    this.text = text;
+	}
+	public String toString() {
+	    return text;
+	}
 }
 
 public final class MyStrategy implements Strategy {
@@ -19,12 +27,12 @@ public final class MyStrategy implements Strategy {
 	
 	@Override
 	public void move(Tank self, World world, Move move) {
-	    int teamSize = 6 / world.getPlayers().length;
-	    if (teamSize == 1) {
+	    int teammates = BaseStrategyImpl.getAliveTeammates(self, world);
+	    if (teammates == 0) {
     	    SingleStrategyImpl strategy = new SingleStrategyImpl(self, world, move, state);
     	    strategy.run();
     	    state = strategy.getState();
-	    } else if (teamSize == 2) {
+	    } else if (teammates == 1) {
     	    DoubleStrategyImpl strategy = new DoubleStrategyImpl(self, world, move, state);
     	    strategy.run();
     	    state = strategy.getState();

@@ -50,7 +50,11 @@ public class SingleStrategyImpl extends BaseStrategyImpl {
     		quickDrive(dest);
 		}
 		
-		if (self.getDistanceTo(dest.x, dest.y) < self.getWidth() / 2) {
+		if (isTwoOnOne()) {
+		    state = State.TwoOnOne;
+		} else if (isOneOnOne()) {
+		    state = State.OneOnOne;
+    	} else if (self.getDistanceTo(dest.x, dest.y) < self.getWidth() / 2) {
 		    state = State.InCorner;
 		}
 	}
@@ -61,7 +65,11 @@ public class SingleStrategyImpl extends BaseStrategyImpl {
 			avoidDanger(dangerShells);
 		}
 		
-		if (shouldLeaveCorner()) {
+		if (isTwoOnOne()) {
+		    state = State.TwoOnOne;
+		} else if (isOneOnOne()) {
+		    state = State.OneOnOne;
+    	} else if (shouldLeaveCorner()) {
 		    state = State.Walk;
 		} else {
 		    Point corner = getNearestCorner();
@@ -98,9 +106,10 @@ public class SingleStrategyImpl extends BaseStrategyImpl {
 			drive(getNearestWall());
 		}
 		
-		if (getAliveEnemies().size() == 1) {
-			state = State.OneOnOne;
-		}	}
+		if (isOneOnOne()) {
+		    state = State.OneOnOne;
+		}
+	}
 	
 	private void oneOnOneMove() {
 		Tank enemy = getAliveEnemies().get(0);
