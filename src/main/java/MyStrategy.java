@@ -36,6 +36,10 @@ public final class MyStrategy implements Strategy {
     	    DoubleStrategyImpl strategy = new DoubleStrategyImpl(self, world, move, state);
     	    strategy.run();
     	    state = strategy.getState();
+	    } else {
+    	    DoubleStrategyImpl strategy = new DoubleStrategyImpl(self, world, move, state);
+    	    strategy.run();
+    	    state = strategy.getState();
 	    }
 	}
 
