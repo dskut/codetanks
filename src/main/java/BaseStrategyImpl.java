@@ -410,6 +410,7 @@ public class BaseStrategyImpl {
 		List<Unit> res = new ArrayList<Unit>();
 		res.addAll(getDeadTanks());
 		res.addAll(Arrays.asList(world.getBonuses()));
+		res.addAll(Arrays.asList(world.getObstacles()));
 		return res;
 	}
 	
