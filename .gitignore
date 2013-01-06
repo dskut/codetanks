@@ -9,7 +9,10 @@ local-runner
 repeater
 *.pdf
 *.xml
-*.jar
 *.iml
 *.log
 *.zip
+*.class
+*.jar
+*.war
+*.ear
